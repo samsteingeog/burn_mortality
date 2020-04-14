@@ -1,0 +1,58 @@
+---
+title: "fire_selection"
+author: "Sam Stein"
+date: "4/7/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(maps)
+library(sf)
+
+```
+
+## Sample Selection
+
+The purpose of this code is to select a random subsample of 2017 California wildfires that burned at least 300 acres. This subsample will be used to train our regression model. 
+
+```{r import data}
+
+fires_all <- read_sf(dsn = "./data/fire_data", layer = "2017_fires")
+
+```
+
+
+```{r select fire size}
+
+fires_smaller <- fires_all %>%
+  filter(GIS_ACRES > 300 &
+           GIS_ACRES < 2000)
+
+fires_larger <- fires_all %>%
+  filter(GIS_ACRES > 2000)
+
+```
+
+```{r sampling}
+
+set.seed(1)
+
+subsample_smaller <- fires_smaller %>%
+  sample_n(size = 55, replace = FALSE)
+
+subsample_larger <- fires_larger %>%
+  sample_n(size = 55, replace = FALSE)
+
+fires_sample <- rbind(subsample_smaller, subsample_larger)
+
+```
+
+```{r export sample}
+
+st_write(fires_sample, dsn = "./data/fire_data/110fires_sample.shp", layer = "110fires_sample.shp", driver = "ESRI Shapefile")
+
+
+```
