@@ -9,11 +9,10 @@ output: html_document
 library(readr)
 ```
 
+#### Read in data
 ```{r}
-
-#read.table("data/RAWS.txt", header = FALSE, sep = "", skip = 3, strip.white = TRUE)
-
-read.fwf("data/RAWS.txt", widths = c(28, 14, 8, 10, 10), 
+# read in data
+stations <- read.fwf("data/RAWS.txt", widths = c(28, 14, 8, 10, 10), 
          col.names = c("station", "state", "elevation", "latitude", "longitude"), skip = 3, colClasses = c("character", "character", "integer", "integer"), stringsAsFactors = FALSE)
                           
 ```
