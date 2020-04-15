@@ -12,8 +12,9 @@ library(readr)
 
 ```{r}
 
-#read.table("data/RAWS.txt", header = FALSE, sep = "", skip = 3)
+#read.table("data/RAWS.txt", header = FALSE, sep = "", skip = 3, strip.white = TRUE)
 
-read_table2("data/RAWS.txt", skip = 3)
-
+read.fwf("data/RAWS.txt", widths = c(28, 14, 8, 10, 10), 
+         col.names = c("station", "state", "elevation", "latitude", "longitude"), skip = 3, colClasses = c("character", "character", "integer", "integer"), stringsAsFactors = FALSE)
+                          
 ```

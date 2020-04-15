@@ -66,7 +66,7 @@ Bouquet Reservoi            California     3360     343453     1182414
 Bradley                     California      537     355152     1204811
 Branch Mountain             California     3770     351120     1200500
 Brazie Ranch                California     3000     414107     1223539
-Breckenridge  	            California     7501     352702     1183502
+Breckenridge                California     7501     352702     1183502
 Bridgeport                  California     6480     381619     1191721
 Bridgeport 4NW              California     6650     381619     1191721
 Briones                     California     1450     375639     1220704
@@ -76,13 +76,13 @@ Buck Meadows                California     3200     374924     1200551
 Bull Flat                   California     4395     402851     1200650
 Burns Canyon                California     6000     341237     1163802
 Burro Canyon                California     2121     341444     1175017
-Butte Meadows 	            California     4960     400444     1213014
+Butte Meadows               California     4960     400444     1213014
 Buttercup                   California      217     324423     1145302
 CFA Raws                    California      660     382248     1205549
 Cabazo                      California     2155     335555     1164819
 Cahoon                      California     2240     362049     1213039
 Cahuilla                    California      278     325825     1151025
-Calaveras Road 	            California     1230     373311     1215038
+Calaveras Road              California     1230     373311     1215038
 Callahan                    California     3136     411827     1224745
 Callahan 2                  California     3911     411800     1224928
 Camanche                    California      368     381352     1210040
@@ -119,14 +119,14 @@ Clover                      California     5760     395210     1202255
 Cohasset                    California     1733     395218     1214608
 Colby Mountain              California     6262     400845     1213121
 Cold Creek                  California     6350     414654     1201906
-Cold Springs   	            California     6313     414632     1201958
+Cold Springs                California     6313     414632     1201958
 Collins Baldy               California     5493     414630     1225701
 Converse                    California     5618     341139     1165447
 Cooskie Mountain            California     2950     401525     1241558
 Cordoza Ridge               California     2331     371006     1213142
 Corning                     California      294     395620     1221011
 Corona                      California      640     335228     1173257
-Corona #2                   California     1968     334908     1173425
+Corona 2                    California     1968     334908     1173425
 Corralitos                  California      450     365928     1214752
 Cottage                     California     6058     382046     1201345
 County Line                 California     2085     390108     1222443
@@ -139,7 +139,7 @@ Crazy Peak                  California     3970     415931     1233613
 Crestview                   California     7600     374442     1185900
 Crystal Lake (BAER)         California     5448     341905     1175030
 D L Bliss S P               California     6942     385804     1200600
-DWP Powerplant #1           California     3000     343556     1182704
+DWP Powerplant1             California     3000     343556     1182704
 Davis                       California     6200     395630     1203330
 Del Valle                   California     1278     342552     1184058
 Delnorte                    California      800     340033     1193915
@@ -300,7 +300,7 @@ Mission Valley              California      300     324648     1171200
 Modoc NWR                   California     4380     412732     1202113
 Mohawk                      California     5122     394646     1203541
 Mojave River Sink           California      950     350311     1160446
-Montecito #2                California      372     342642     1193734
+Montecito  2                California      372     342642     1193734
 Mormon Rock                 California     3300     341903     1173007
 Mount Elizabeth             California     4933     380347     1201449
 Mount Tom                   California     9018     372234     1191042
@@ -378,7 +378,7 @@ Rose Peak                   California     3060     373007     1214408
 Rose Valley                 California     3331     343235     1191103
 Round Mountain              California     5258     412538     1212750
 Rush Creek                  California     4800     411740     1205150
-Russian Ridge (CDF#3)       California     2256     371945     1221251
+Russian Ridge (CDF3)        California     2256     371945     1221251
 Ruth                        California     2732     401502     1231857
 STF02 Portabl               California     2500     374522     1200335
 Sacramento NWR              California      120     392502     1221057
@@ -442,12 +442,12 @@ Talega Ridge                California     1215     332839     1172911
 Tanbark                     California     2600     341225     1174538
 Target Range                California      918     332220     1172132
 Temescal                    California     1060     342900     1183600
-Temescal #2 (CNF)           California     1486     334522     1172948
+Temescal  2 (CNF)           California     1486     334522     1172948
 Temescal (CNF)              California     1125     334545     1172858
 Temescal (LPF)              California     1140     342850     1184520
 Tepusquet                   California     3200     345512     1201052
 Thomes Creek                California     1040     395152     1223635
-Thousand Oaks               California     795,     41236,     185212
+Thousand Oaks               California     795      41236      185212
 Timber Mountain             California     4960     413746     1211753
 Tonner Canyon               California     1340     335651     1174920
 Topanga                     California     1600     340810     1183622
@@ -472,7 +472,7 @@ Weaverville                 California     2100     404406     1225636
 Weed Airport                California     2930     412844     1222714
 Westside                    California     1291     411324     1240309
 Westwood                    California     5800     401824     1205400
-Whiskeytown HQ#2            California     1360     403638     1223138
+Whiskeytown HQ2             California     1360     403638     1223138
 Whitaker Peak               California     4120     343407     1184425
 White Cloud                 California     4320     391900     1205015
 White Horse                 California     3400     393100     1213500
@@ -490,4 +490,4 @@ Woodacre                    California     1400     375926     1223841
 Woody                       California     1591     354222     1184957
 Yolla Bolla                 California     6757     402018     1230354
 Yucca Valley                California     3260     340724     1162428
-Yurok                       California	    495     411723     1235127
+Yurok                       California      495     411723     1235127
