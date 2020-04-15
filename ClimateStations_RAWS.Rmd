@@ -1,0 +1,19 @@
+---
+title: "Untitled"
+author: "Samantha Hing"
+date: "4/15/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+```
+
+```{r}
+
+#read.table("data/RAWS.txt", header = FALSE, sep = "", skip = 3)
+
+read_table2("data/RAWS.txt", skip = 3)
+
+```
