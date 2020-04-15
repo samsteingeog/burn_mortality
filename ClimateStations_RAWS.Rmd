@@ -7,12 +7,32 @@ output: html_document
 #### Load packages
 ```{r}
 library(readr)
+library(dplyr)
+library(tidyr)
 ```
 
 #### Read in data
 ```{r}
 # read in data
 stations <- read.fwf("data/RAWS.txt", widths = c(28, 14, 8, 10, 10), 
-         col.names = c("station", "state", "elevation", "latitude", "longitude"), skip = 3, colClasses = c("character", "character", "integer", "integer"), stringsAsFactors = FALSE)
+         col.names = c("station", "state", "elevation", "latitude", "longitude"), skip = 3, colClasses = c("character", "character", "integer", "integer", "integer"), stringsAsFactors = FALSE, nrow = 493)
+
+stations <- stations %>%
+  separate(latitude, into = c('lat_dd', 'lat_mm', 'lat_ss'), sep = c(2, 4)) %>%
+  mutate(ns = rep('W', nrow(stations))) %>%
+  
+
+stations$ as.integer(c(stations$lat_dd) 
+
+
+
+stations <- stations %>% mutate(latitude =  biogeo::dms2dd(lat_dd, lat_mm, lat_ss, ns))
+  
                           
+```
+
+### Convert coordinates into decimal degrees
+```{r}
+biodms2dd()
+
 ```
