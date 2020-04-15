@@ -9,30 +9,44 @@ output: html_document
 library(readr)
 library(dplyr)
 library(tidyr)
+library(sf)
+library(rnaturalearth)
+library(ggplot2)
 ```
 
 #### Read in data
 ```{r}
-# read in data
-stations <- read.fwf("data/RAWS.txt", widths = c(28, 14, 8, 10, 10), 
-         col.names = c("station", "state", "elevation", "latitude", "longitude"), skip = 3, colClasses = c("character", "character", "integer", "integer", "integer"), stringsAsFactors = FALSE, nrow = 493)
+# read in stations data
+stations <- read.fwf("data/RAWS.txt", widths = c(28, 14, 8, 4, 2, 4, 6, 2, 2), 
+         col.names = c("station", "state", "elevation", "lat_dd","lat_mm","lat_ss","long_dd", "long_mm", "long_ss"), skip = 3, colClasses = c("character", "character", "integer", "integer", "integer", "integer", "integer", "integer", "integer"), stringsAsFactors = FALSE, nrow = 493)
 
-stations <- stations %>%
-  separate(latitude, into = c('lat_dd', 'lat_mm', 'lat_ss'), sep = c(2, 4)) %>%
-  mutate(ns = rep('W', nrow(stations))) %>%
-  
+# stations <- stations %>%
+#   separate(latitude, into = c('lat_dd', 'lat_mm', 'lat_ss'), sep = c(2, 4)) %>%
+#   mutate(ns = rep('W', nrow(stations))) 
 
-stations$ as.integer(c(stations$lat_dd) 
+stations <- stations %>% mutate(ns_long = rep('W', nrow(stations)), ns_lat = rep('N', nrow(stations)))
 
+stations <- stations %>% 
+  mutate(latitude =  biogeo::dms2dd(lat_dd, lat_mm, lat_ss, ns_lat), 
+         longitude =  biogeo::dms2dd(long_dd, long_mm, long_ss, ns_long))
 
-
-stations <- stations %>% mutate(latitude =  biogeo::dms2dd(lat_dd, lat_mm, lat_ss, ns))
-  
-                          
+# read in fire data
+fires <- read_sf(dsn = "./data/fire_data", layer = "110fires_sample")
+plot(fires)
 ```
 
-### Convert coordinates into decimal degrees
+### Plot stations
 ```{r}
-biodms2dd()
+world <- ne_countries(scale = "medium", returnclass = "sf")
 
+max_lat <- max(stations$latitude)
+min_lat <- min(stations$latitude)
+max_long <- max(stations$longitude)
+min_long <- min(stations$longitude)
+
+ggplot(data = world) +
+    geom_sf() +
+    geom_point(data = stations, aes(x = longitude, y = latitude), size = 4, 
+        shape = 23, fill = "darkred") +
+    coord_sf(xlim = c(min_long, max_long), ylim = c(min_lat, max_lat), expand = FALSE)
 ```
