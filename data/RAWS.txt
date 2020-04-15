@@ -447,7 +447,7 @@ Temescal (CNF)              California     1125     334545     1172858
 Temescal (LPF)              California     1140     342850     1184520
 Tepusquet                   California     3200     345512     1201052
 Thomes Creek                California     1040     395152     1223635
-Thousand Oaks               California     795      41236      185212
+Thousand Oaks               California      795     341236     1185212
 Timber Mountain             California     4960     413746     1211753
 Tonner Canyon               California     1340     335651     1174920
 Topanga                     California     1600     340810     1183622
