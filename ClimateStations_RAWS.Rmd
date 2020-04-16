@@ -14,6 +14,7 @@ library(sp)
 library(rnaturalearth)
 library(ggplot2)
 library(rgdal)
+library(nngeo)
 
 ```
 
@@ -35,7 +36,7 @@ stations <- stations %>%
 
 # read in fire data
 fires <- read_sf(dsn = "./data/fire_data", layer = "110fires_sample")
-plot(fires)
+#plot(fires)
 ```
 
 ### Plot stations
@@ -83,29 +84,32 @@ stations_sf <- st_transform(stations_sf, crs = st_crs(fires)) #set crs to match 
 
 #trying using sf
 fire_centers <- st_centroid(fires, of_largest_polygon = FALSE) #creating points for centroid of fires
-# fire_tester <- fire_centers %>%
-#   filter(OBJECTID == 20500)
 
-#return index number of closest fire to each centroid
-station_index <- st_nearest_feature(fire_centers, stations_sf) 
-fires <- fires %>% 
-  mutate(station_index = station_index)
-
-#add station name to fire table
+#table of just station names by index number
 station_names <- data.frame(stations$station) %>%
   mutate(station_index = 1:490)
 
-fire_wStations <- left_join(fires, station_names)
+#find 3 closest stations
+backups <- st_nn(fire_centers, stations_sf, k = 3) #modified to select three closest neighbors
+stn_backups <- data.frame(matrix(unlist(backups), ncol = max(lengths(backups)), byrow = TRUE)) #get into df
+
+#join data
+fires_wstns <- fires %>%   #attach index number of each station to fire data
+  mutate(station1 = stn_backups$X1) %>%
+  mutate(station2 = stn_backups$X2) %>%
+  mutate(station3 = stn_backups$X3)
+ 
+fires_wstns <- left_join(fires_wstns, station_names, by = c("station1" = "station_index")) %>%
+  rename(stn_1 = stations.station)
+  
+fires_wstns <- left_join(fires_wstns, station_names, by = c("station2" = "station_index")) %>%
+  rename(stn_2 = stations.station)
+
+fires_wstns <- left_join(fires_wstns, station_names, by = c("station3" = "station_index")) %>%
+  rename(stn_3 = stations.station) %>%
+  select(-station1, -station2, -station3)
+
+#st_write(fires_wstns, dsn = "./data/fire_data/fires_wstns.shp", layer = "fires_wstns.shp")
 
 ```
 
-
-### Make tiny test sample to check weather data
-
-```{r test batch}
-
-tester_samples <- head(fire_wStations, 5)
-
-st_write(tester_samples, dsn = "./data/fire_data/tester_samples.shp", layer = "tester_samples.shp")
-
-```
