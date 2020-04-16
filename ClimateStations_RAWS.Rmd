@@ -10,8 +10,11 @@ library(readr)
 library(dplyr)
 library(tidyr)
 library(sf)
+library(sp)
 library(rnaturalearth)
 library(ggplot2)
+library(rgdal)
+
 ```
 
 #### Read in data
@@ -49,4 +52,60 @@ ggplot(data = world) +
     geom_point(data = stations, aes(x = longitude, y = latitude), size = 4, 
         shape = 23, fill = "darkred") +
     coord_sf(xlim = c(min_long, max_long), ylim = c(min_lat, max_lat), expand = FALSE)
+```
+
+### Convert data
+```{r converting data}
+#convert data for next step
+#making spatial files to try with rgeos
+stations_sp <- stations
+coordinates(stations_sp)=~longitude+latitude
+proj4string(stations_sp)<- CRS("+proj=longlat +ellps=WGS84") #guessing at original data's projection
+
+stations_sp <-spTransform(stations_sp, CRS="+proj=utm +zone=10 +datum=NAD83") #change to UTM to match fire data
+
+fires_sp <- as(fires, "Spatial")
+
+#making sf files to try with sf
+stations_sf <- st_as_sf(stations_sp)
+stations_sf <- st_transform(stations_sf, crs = st_crs(fires)) #set crs to match fire data
+
+#st_write(stations_sf, dsn = "./data/stations_v10.shp", layer = "stations_v10.shp")
+```
+
+
+### Find nearest station to each fire
+
+```{r nearest}
+#trying using rgeos FAILED
+# nearest <- gNearestPoints(fires_sp[1], station_try)
+# plot(nearest) #only returns one pair of points
+
+#trying using sf
+fire_centers <- st_centroid(fires, of_largest_polygon = FALSE) #creating points for centroid of fires
+# fire_tester <- fire_centers %>%
+#   filter(OBJECTID == 20500)
+
+#return index number of closest fire to each centroid
+station_index <- st_nearest_feature(fire_centers, stations_sf) 
+fires <- fires %>% 
+  mutate(station_index = station_index)
+
+#add station name to fire table
+station_names <- data.frame(stations$station) %>%
+  mutate(station_index = 1:490)
+
+fire_wStations <- left_join(fires, station_names)
+
+```
+
+
+### Make tiny test sample to check weather data
+
+```{r test batch}
+
+tester_samples <- head(fire_wStations, 5)
+
+st_write(tester_samples, dsn = "./data/fire_data/tester_samples.shp", layer = "tester_samples.shp")
+
 ```
