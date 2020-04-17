@@ -15,6 +15,9 @@ library(rnaturalearth)
 library(ggplot2)
 library(rgdal)
 library(nngeo)
+library(lubridate)
+library(fs)
+library(purrr)
 
 ```
 
@@ -110,6 +113,99 @@ fires_wstns <- left_join(fires_wstns, station_names, by = c("station3" = "statio
   select(-station1, -station2, -station3)
 
 #st_write(fires_wstns, dsn = "./data/fire_data/fires_wstns.shp", layer = "fires_wstns.shp")
+
+```
+## Process RAWS data
+
+### read in RAWS csv files
+
+```{r read RAWS data}
+
+data_dir <- "data/weather_data" #set location of all RAWS files
+data_dir <- fs::dir_ls(data_dir) #create directory
+
+raw_weather <- data_dir %>%  #read in all csvs into one table
+  map_dfr(read_csv, col_types = cols("date" = col_date(format = "%m/%d/%y"))) %>%
+  select(1:19) 
+```
+
+
+```{r ID correct intervals and calc averages}
+
+#create correct time intervals
+
+needed_data <- fires_wstns %>% #pull just the minimum data needed
+  select(OBJECTID, stn_1, stn_2, stn_3, ALARM_DATE, CONT_DATE, -geometry)
+
+needed_data$ALARM_DATE <- ymd_hms(needed_data$ALARM_DATE) #convert to dates
+needed_data$CONT_DATE <- ymd_hms(needed_data$CONT_DATE)
+
+#make create time intervals of interest
+
+needed_data$priormonth <- interval(needed_data$ALARM_DATE - days(30), needed_data$ALARM_DATE)
+needed_data$priorweek <- interval(needed_data$ALARM_DATE - days(7), needed_data$ALARM_DATE)
+needed_data$fireduration <- interval(needed_data$ALARM_DATE, needed_data$CONT_DATE)
+
+#join date data with weather data by objectid
+
+weather <- full_join(needed_data, raw_weather, by = c("OBJECTID" = "Fire")) 
+weather %>% as_tibble() %>% dplyr::select(-geometry)
+class(weather) <- 'data.frame'
+st_geometry(weather) -> null
+
+#Filter out unneeded data points
+
+weather$months <- weather$date %within% weather$priormonth
+weather$weeks <- weather$date %within% weather$priorweek
+weather$fires <- weather$date %within% weather$fireduration
+
+```
+
+```{r do calcs}  
+#calculate data for each time interval
+
+month_temp <- weather %>% #group by fires that have same start and end interval dates and fire id
+  filter(months == TRUE) %>%
+  group_by(OBJECTID) %>% 
+  summarise(month_temp = mean(air_temp_mean_degF, na.rm = TRUE)) 
+
+week_temp <- weather %>%
+  filter(weeks == TRUE) %>%
+  group_by(OBJECTID) %>% 
+  summarise(week_temp = mean(air_temp_mean_degF, na.rm = TRUE))
+
+month_precip <- weather %>%
+  filter(months == TRUE) %>%
+  group_by(OBJECTID) %>% 
+  summarise(month_precip = sum(precip_inches, na.rm = TRUE))
+
+week_precip <- weather %>%
+  filter(weeks == TRUE) %>%
+  group_by(OBJECTID) %>% 
+  summarise(week_precip = sum(precip_inches, na.rm = TRUE))
+
+ave_wind <- weather %>%
+  filter(fires == TRUE) %>%
+  group_by(OBJECTID) %>% 
+  summarise(wind_speed = mean(wind_avg_mph, na.rm = TRUE))
+
+
+```
+
+
+```{r finalize weather data frame}
+#combine calculated weather data
+
+all_weather <- st_join(month_temp, week_temp, left = TRUE)
+
+all_weather <- full_join(month_temp, week_temp) %>%
+  full_join(month_precip) %>%
+  full_join(week_precip) %>%
+  full_join(ave_wind)
+
+fires_weather <- full_join(fires_wstns, all_weather, by = "OBJECTID")
+
+#st_write(fires_weather, dsn = "./data/fire_data/fires_weather.shp", layer = "fires_weather.shp")
 
 ```
 
