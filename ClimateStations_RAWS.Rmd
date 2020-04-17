@@ -151,7 +151,8 @@ needed_data$fireduration <- interval(needed_data$ALARM_DATE, needed_data$CONT_DA
 weather <- full_join(needed_data, raw_weather, by = c("OBJECTID" = "Fire")) 
 weather %>% as_tibble() %>% dplyr::select(-geometry)
 class(weather) <- 'data.frame'
-st_geometry(weather) -> null
+
+#st_geometry(weather) -> null  ##error here
 
 #Filter out unneeded data points
 
@@ -196,7 +197,7 @@ ave_wind <- weather %>%
 ```{r finalize weather data frame}
 #combine calculated weather data
 
-all_weather <- st_join(month_temp, week_temp, left = TRUE)
+##all_weather <- st_join(month_temp, week_temp, left = TRUE) #error here
 
 all_weather <- full_join(month_temp, week_temp) %>%
   full_join(month_precip) %>%
@@ -205,7 +206,22 @@ all_weather <- full_join(month_temp, week_temp) %>%
 
 fires_weather <- full_join(fires_wstns, all_weather, by = "OBJECTID")
 
-#st_write(fires_weather, dsn = "./data/fire_data/fires_weather.shp", layer = "fires_weather.shp")
+#st_write(fires_weather, dsn = "./data/fire_data/fires_weather2.shp", layer = "fires_weather2.shp")
 
 ```
 
+
+```{r}
+# find missing fires
+# no missing fires now
+objectIDs_1 <-na.omit(unique(weather$OBJECTID))
+length(objectIDs_1)
+
+objectIDs_2 <- unique(month_temp$OBJECTID)
+length(objectIDs_2)
+
+objectIDs_missing <- objectIDs_1[!(objectIDs_1 %in% objectIDs_2)]
+objectIDs_missing
+
+```
+```
