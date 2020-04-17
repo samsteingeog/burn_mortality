@@ -165,9 +165,10 @@ weather$fires <- weather$date %within% weather$fireduration
 ```{r do calcs}  
 #calculate data for each time interval
 
-month_temp <- weather %>% #group by fires that have same start and end interval dates and fire id
-  filter(months == TRUE) %>%
-  group_by(OBJECTID) %>% 
+#ave temp
+month_temp <- weather %>% 
+  filter(months == TRUE) %>% #where points were in the month interval
+  group_by(OBJECTID) %>%  #group by fire
   summarise(month_temp = mean(air_temp_mean_degF, na.rm = TRUE)) 
 
 week_temp <- weather %>%
@@ -175,6 +176,12 @@ week_temp <- weather %>%
   group_by(OBJECTID) %>% 
   summarise(week_temp = mean(air_temp_mean_degF, na.rm = TRUE))
 
+dur_temp <- weather %>%
+  filter(fires == TRUE) %>%
+  group_by(OBJECTID) %>% 
+  summarise(dur_temp = mean(air_temp_mean_degF, na.rm = TRUE))
+
+#cumulative precip
 month_precip <- weather %>%
   filter(months == TRUE) %>%
   group_by(OBJECTID) %>% 
@@ -185,6 +192,34 @@ week_precip <- weather %>%
   group_by(OBJECTID) %>% 
   summarise(week_precip = sum(precip_inches, na.rm = TRUE))
 
+#ave humidity
+month_humid <- weather %>%
+  filter(months == TRUE) %>%
+  group_by(OBJECTID) %>% 
+  summarise(month_humid = mean(humidity_mean, na.rm = TRUE))
+
+week_humid <- weather %>%
+  filter(weeks == TRUE) %>%
+  group_by(OBJECTID) %>% 
+  summarise(week_humid = mean(humidity_mean, na.rm = TRUE))
+
+dur_humid <- weather %>%
+  filter(fires == TRUE) %>%
+  group_by(OBJECTID) %>% 
+  summarise(dur_humid = mean(humidity_mean, na.rm = TRUE))
+
+#ave solar radiation
+month_sol <- weather %>%
+  filter(months == TRUE) %>%
+  group_by(OBJECTID) %>% 
+  summarise(month_sol = mean(solar_rad, na.rm = TRUE))
+
+week_sol <- weather %>%
+  filter(weeks == TRUE) %>%
+  group_by(OBJECTID) %>% 
+  summarise(week_sol = mean(solar_rad, na.rm = TRUE))
+
+#ave wind speed
 ave_wind <- weather %>%
   filter(fires == TRUE) %>%
   group_by(OBJECTID) %>% 
@@ -200,13 +235,19 @@ ave_wind <- weather %>%
 ##all_weather <- st_join(month_temp, week_temp, left = TRUE) #error here
 
 all_weather <- full_join(month_temp, week_temp) %>%
+  full_join(dur_temp) %>%
   full_join(month_precip) %>%
   full_join(week_precip) %>%
+  full_join(month_humid) %>%
+  full_join(week_humid) %>%
+  full_join(dur_humid) %>%
+  full_join(month_sol) %>%
+  full_join(week_sol) %>%
   full_join(ave_wind)
 
 fires_weather <- full_join(fires_wstns, all_weather, by = "OBJECTID")
 
-#st_write(fires_weather, dsn = "./data/fire_data/fires_weather2.shp", layer = "fires_weather2.shp")
+#st_write(fires_weather, dsn = "./data/fire_data/fires_weather3.shp", layer = "fires_weather3.shp")
 
 ```
 
