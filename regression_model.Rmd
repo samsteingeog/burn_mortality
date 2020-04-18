@@ -10,7 +10,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
 library(lubridate)
-
+library(caTools)
+library(caret)
 
 ```
 
@@ -29,18 +30,80 @@ sample_pts$fireduration <- interval(sample_pts$ALARM_DATE, sample_pts$CONT_DATE)
   as.duration()
 ```
 
-```{r join tables}
+```{r make final tables}
 
 all_data <- full_join(sample_pts, fires_weather, by = "OBJECTID") %>%
   select(-ALARM_DATE.y, -CONT_DATE.y, -Shape_Leng.y, -YEAR_, -STATE) #drop extraneous variables
 
 # make exportable version
-# all_df <- all_data %>%
-#   select(-geometry)
-# 
+ all_df <- all_data %>%
+   select(-geometry)
+
 # write.csv(all_df, file = "all_data.csv")
 
+#confirm that data seems correct 
+summary(all_corr)  
+
+#drop missing values for DEM and derived data
+#drop values without info on dbr
+all_df <- all_df %>%  
+  filter(!(dem == -9999)) %>%
+  filter(!(dbr == 0))
+ 
+# Test/Train split
+ set.seed(1)
+ 
+ data_split = sample.split(all_df, SplitRatio = 0.75) #setting up testing and training split
+ train <- subset(all_df, data_split == TRUE)
+ test <-subset(all_df, data_split == FALSE)
 
 ```
 
+## Set up OLS model
+
+```{r OLS}
+
+#create the model (using all data for now)
+#current model doesn't include precip/temp/humid during the fire or solar radiation data
+ols1 <- lm(dbr ~ slope + aspect + dem + LivingBio + DeadBio + fireduration + GIS_ACRES + 
+          month_temp + week_temp + month_precip + week_precip + wind_speed + month_humid + week_humid, 
+          data = all_df)
+
+#summary(ols)
+
+#Check fit on train data
+all_df$pred_dbr <- predict(ols1, newdata = all_df)
+
+ggplot(all_df) +
+  geom_point(aes(x = dbr, y = pred_dbr), alpha = 0.4) +
+  xlim(0,1000) +
+  ylim(0,1000) +
+  theme_minimal()
+
+#Fit is pretty bad so far (tendancy to dramatically underestimate dbr)
+
+```
+
+```{r OLS stepwise}
+#trying a stepwise function to select only most relevant variables
+
+all_dbr <- all_df$dbr #just dependent variables
+
+all_ind <- all_df %>% #just independent variables
+  select(slope, aspect, dem, LivingBio, DeadBio, fireduration, GIS_ACRES, 
+          month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid)
+
+control <- trainControl(method = "repeatedcv", number = 10, selectionFunction = "best") #this controls the settings for the model selection (10-fold cross validation currently)
+
+all_step <- train(x = all_ind, 
+                  y = all_dbr, 
+                  form = ols1, 
+                  data = all_df,
+                  method = "leapSeq", #stepwise version of function
+                  tuneGrid = data.frame(nvmax = 1:14),
+                  trControl = control) #using settings from above
+
+summary(all_step)
+
+```
 
