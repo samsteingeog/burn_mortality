@@ -1,0 +1,46 @@
+---
+title: "Regression"
+author: "Sam Stein"
+date: "4/17/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(lubridate)
+
+
+```
+
+## Join data sources
+
+
+```{r read data}
+#import Yiyi's file with data from 10k sample points
+sample_pts <- read_csv("data/sample_pts")
+
+#clean up date values
+sample_pts$ALARM_DATE <- ymd_hms(sample_pts$ALARM_DATE) #change from char to date
+sample_pts$CONT_DATE <- ymd_hms(sample_pts$CONT_DATE)
+#sample_pts$duration <- as.numeric(sample_pts$duration) #couldn't figure out how to extract just first digits of string (maybe a regex?)
+sample_pts$fireduration <- interval(sample_pts$ALARM_DATE, sample_pts$CONT_DATE) %>% #coerce duration dates into time values
+  as.duration()
+```
+
+```{r join tables}
+
+all_data <- full_join(sample_pts, fires_weather, by = "OBJECTID") %>%
+  select(-ALARM_DATE.y, -CONT_DATE.y, -Shape_Leng.y, -YEAR_, -STATE) #drop extraneous variables
+
+# make exportable version
+# all_df <- all_data %>%
+#   select(-geometry)
+# 
+# write.csv(all_df, file = "all_data.csv")
+
+
+```
+
+

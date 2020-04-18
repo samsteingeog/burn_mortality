@@ -152,8 +152,6 @@ weather <- full_join(needed_data, raw_weather, by = c("OBJECTID" = "Fire"))
 weather %>% as_tibble() %>% dplyr::select(-geometry)
 class(weather) <- 'data.frame'
 
-#st_geometry(weather) -> null  ##error here
-
 #Filter out unneeded data points
 
 weather$months <- weather$date %within% weather$priormonth
