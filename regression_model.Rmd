@@ -12,6 +12,7 @@ library(tidyverse)
 library(lubridate)
 library(caTools)
 library(caret)
+library(MASS)
 
 ```
 
@@ -33,16 +34,16 @@ sample_pts$fireduration <- interval(sample_pts$ALARM_DATE, sample_pts$CONT_DATE)
 ```{r make final tables}
 
 all_data <- full_join(sample_pts, fires_weather, by = "OBJECTID") %>%
-  select(-ALARM_DATE.y, -CONT_DATE.y, -Shape_Leng.y, -YEAR_, -STATE) #drop extraneous variables
+  dplyr::select(-ALARM_DATE.y, -CONT_DATE.y, -Shape_Leng.y, -YEAR_, -STATE) #drop extraneous variables
 
 # make exportable version
  all_df <- all_data %>%
-   select(-geometry)
+   dplyr::select(-geometry)
 
 # write.csv(all_df, file = "all_data.csv")
 
 #confirm that data seems correct 
-summary(all_corr)  
+summary(all_df)  
 
 #drop missing values for DEM and derived data
 #drop values without info on dbr
@@ -90,7 +91,7 @@ ggplot(all_df) +
 all_dbr <- all_df$dbr #just dependent variables
 
 all_ind <- all_df %>% #just independent variables
-  select(slope, aspect, dem, LivingBio, DeadBio, fireduration, GIS_ACRES, 
+  dplyr::select(slope, aspect, dem, LivingBio, DeadBio, fireduration, GIS_ACRES, 
           month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid)
 
 control <- trainControl(method = "repeatedcv", number = 10, selectionFunction = "best") #this controls the settings for the model selection (10-fold cross validation currently)
@@ -103,7 +104,25 @@ all_step <- train(x = all_ind,
                   tuneGrid = data.frame(nvmax = 1:14),
                   trControl = control) #using settings from above
 
-summary(all_step)
+#summary(all_step)
+
+#Using a stepwise model selector based on AIC 
+#Input is the linear model (w/ all parameters) derived above 
+#k - degrees of freedom for penalty (2 for true AIC); direction - both (try adding and substracting terms)
+AIC_ols <- stepAIC(ols1, direction = "both", k = 2)
+
+extractAIC(AIC_ols) #Stepwise dropped month_precip and fire duration based on fit; not sure if we should trust this??
+
+summary(AIC_ols)
+
+all_df$step_dbr <- predict(AIC_ols, newdata = all_df) #predict using pared down model
+
+ggplot(all_df) + #doesn't seem to make much difference
+  geom_point(aes(x = dbr, y = step_dbr), alpha = 0.4) +
+  xlim(0,1000) +
+  ylim(0,1000) +
+  theme_minimal()
+
 
 ```
 

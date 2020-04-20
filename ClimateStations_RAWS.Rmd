@@ -110,7 +110,7 @@ fires_wstns <- left_join(fires_wstns, station_names, by = c("station2" = "statio
 
 fires_wstns <- left_join(fires_wstns, station_names, by = c("station3" = "station_index")) %>%
   rename(stn_3 = stations.station) %>%
-  select(-station1, -station2, -station3)
+  dplyr::select(-station1, -station2, -station3)
 
 #st_write(fires_wstns, dsn = "./data/fire_data/fires_wstns.shp", layer = "fires_wstns.shp")
 
@@ -126,7 +126,7 @@ data_dir <- fs::dir_ls(data_dir) #create directory
 
 raw_weather <- data_dir %>%  #read in all csvs into one table
   map_dfr(read_csv, col_types = cols("date" = col_date(format = "%m/%d/%y"))) %>%
-  select(1:19) 
+  dplyr::select(1:19) 
 ```
 
 
@@ -135,7 +135,7 @@ raw_weather <- data_dir %>%  #read in all csvs into one table
 #create correct time intervals
 
 needed_data <- fires_wstns %>% #pull just the minimum data needed
-  select(OBJECTID, stn_1, stn_2, stn_3, ALARM_DATE, CONT_DATE, -geometry)
+  dplyr::select(OBJECTID, stn_1, stn_2, stn_3, ALARM_DATE, CONT_DATE, -geometry)
 
 needed_data$ALARM_DATE <- ymd_hms(needed_data$ALARM_DATE) #convert to dates
 needed_data$CONT_DATE <- ymd_hms(needed_data$CONT_DATE)
