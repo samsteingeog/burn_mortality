@@ -42,15 +42,30 @@ all_data <- full_join(sample_pts, fires_weather, by = "OBJECTID") %>%
 
 # write.csv(all_df, file = "all_data.csv")
 
-#confirm that data seems correct 
-summary(all_df)  
-
 #drop missing values for DEM and derived data
 #drop values without info on dbr
 all_df <- all_df %>%  
   filter(!(dem == -9999)) %>%
-  filter(!(dbr == 0))
+  filter(!(dbr == 0)) 
+
+#add in 12 hours of fireduration for fires that started and ended the same day
+all_df <- all_df %>%
+  mutate(fireduration = replace(fireduration, fireduration== as.duration(0), as.duration(43200)))
  
+#create averaged values for each fire
+summ_df <- all_df %>%
+  group_by(OBJECTID) %>%
+  summarise(mean(dbr), mean(slope), mean(aspect), mean(dem), 
+            mean(LivingBio), mean(DeadBio), 
+            mean(GIS_ACRES), mean(fireduration), 
+            mean(wind_speed), mean(month_precip), mean(week_precip), mean(month_humid), mean(week_humid), mean(week_temp), mean(month_temp))
+
+summ_df <- summ_df %>%
+  rename("dbr" = "mean(dbr)", "slope" = "mean(slope)", "aspect" = "mean(aspect)", "dem" = "mean(dem)", "LivingBio" = "mean(LivingBio)", "DeadBio" = "mean(DeadBio)", "GIS_ACRES" = "mean(GIS_ACRES)", "fireduration" = "mean(fireduration)", "wind_speed" = "mean(wind_speed)", "month_precip" = "mean(month_precip)", "week_precip" = "mean(week_precip)", "month_humid" = "mean(month_humid)", "week_humid" = "mean(week_humid)", "week_temp" = "mean(week_temp)", "month_temp" = "mean(month_temp)")
+
+#confirm that data seems correct 
+#summary(all_df) 
+
 # Test/Train split
  set.seed(1)
  
@@ -72,7 +87,7 @@ ols1 <- lm(dbr ~ slope + aspect + dem + LivingBio + DeadBio + fireduration + GIS
 
 #summary(ols)
 
-#Check fit on train data
+#Check fit 
 all_df$pred_dbr <- predict(ols1, newdata = all_df)
 
 ggplot(all_df) +
@@ -82,6 +97,20 @@ ggplot(all_df) +
   theme_minimal()
 
 #Fit is pretty bad so far (tendancy to dramatically underestimate dbr)
+
+#using data average across all fires
+ols2 <- lm(dbr ~ slope + aspect + dem + LivingBio + DeadBio + fireduration + GIS_ACRES + 
+          month_temp + week_temp + month_precip + week_precip + wind_speed + month_humid + week_humid, 
+          data = summ_df)
+
+summ_df$pred_dbr <- predict(ols2, newdata = summ_df)
+
+ggplot(summ_df) +
+  geom_point(aes(x = dbr, y = pred_dbr), alpha = 0.4) +
+  geom_abline(slope = 1) +
+  xlim(0,1000) +
+  ylim(0,1000) +
+  theme_minimal()
 
 ```
 
@@ -119,6 +148,23 @@ all_df$step_dbr <- predict(AIC_ols, newdata = all_df) #predict using pared down 
 
 ggplot(all_df) + #doesn't seem to make much difference
   geom_point(aes(x = dbr, y = step_dbr), alpha = 0.4) +
+  geom_abline(slope = 1) +
+  xlim(0,1000) +
+  ylim(0,1000) +
+  theme_minimal()
+
+#Using averaged data for step_AIC
+AIC_ols2 <- stepAIC(ols2, direction = "both", k = 2)
+
+extractAIC(AIC_ols2) #Stepwise dropped month_precip and fire duration based on fit; not sure if we should trust this??
+
+summary(AIC_ols2)
+
+summ_df$step_dbr <- predict(AIC_ols2, newdata = summ_df) #predict using pared down model
+
+ggplot(summ_df) + #doesn't seem to make much difference
+  geom_point(aes(x = dbr, y = step_dbr), alpha = 0.4) +
+  geom_abline(slope = 1) +
   xlim(0,1000) +
   ylim(0,1000) +
   theme_minimal()
