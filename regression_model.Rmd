@@ -207,7 +207,7 @@ all_lasso <- cv.glmnet(x = all_x, y = all_y,
                            intercept = TRUE, alpha = 1)
 all_df$lasso_dbr <- predict(all_lasso, newx= all_x) 
 
-ggplot(all_df) + #doesn't seem to make much difference
+ggplot(all_df) + #even worse spread than OLS
   geom_point(aes(x = dbr, y = lasso_dbr), alpha = 0.4) +
   geom_abline(slope = 1) +
   xlim(0,1000) +
@@ -224,7 +224,7 @@ summ_lasso <- cv.glmnet(x = summ_x, y = summ_y,
                            intercept = TRUE, alpha = 1)
 summ_df$lasso_dbr <- predict(summ_lasso, newx= summ_x) 
 
-ggplot(summ_df) + #doesn't seem to make much difference
+ggplot(summ_df) + #this is somehow even worse???
   geom_point(aes(x = dbr, y = lasso_dbr), alpha = 0.4) +
   geom_abline(slope = 1) +
   xlim(0,1000) +
@@ -233,4 +233,44 @@ ggplot(summ_df) + #doesn't seem to make much difference
 
 ```
 
+```{r RR}
+#trying ridge regression
+#note: also tried elastic net here with almost identical results
 
+#all data points
+all_rr <- cv.glmnet(x = all_x, y = all_y, 
+                           family = "gaussian", standardize = TRUE, 
+                           intercept = TRUE, alpha = 0) #changing alpha from 1 to 0 changes it to RR
+all_df$rr_dbr <- predict(all_rr, newx= all_x) 
+
+ggplot(all_df) + #even worse spread than OLS
+  geom_point(aes(x = dbr, y = rr_dbr), alpha = 0.4) +
+  geom_abline(slope = 1) +
+  xlim(0,1000) +
+  ylim(0,1000) +
+  theme_minimal()
+
+#using fire-wide averages
+
+summ_rr <- cv.glmnet(x = summ_x, y = summ_y, 
+                           family = "gaussian", standardize = TRUE, 
+                           intercept = TRUE, alpha = 0)
+summ_df$rr_dbr <- predict(summ_rr, newx= summ_x) 
+
+ggplot(summ_df) + #this is somehow even worse???
+  geom_point(aes(x = dbr, y = rr_dbr), alpha = 0.4) +
+  geom_abline(slope = 1) +
+  xlim(0,1000) +
+  ylim(0,1000) +
+  theme_minimal()
+
+```
+
+
+```{r RF}
+
+
+
+
+
+```

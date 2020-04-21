@@ -1,0 +1,28 @@
+---
+title: "firedata_EDA"
+author: "Sam Stein"
+date: "4/20/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Exploratory Data Analysis
+Run fire selection, climate stations, and regression model rmds first
+
+```{r scatter plots}
+
+ggplot(all_df) + 
+  geom_point(aes(x = slope, y = dbr)) 
+
+ggplot(summ_df) + 
+  geom_point(aes(x = week_humid, y = dbr))
+
+ggplot(summ_df) + 
+  geom_point(aes(x = wind_speed, y = dbr))
+
+```
+
+
