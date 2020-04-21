@@ -13,6 +13,7 @@ library(lubridate)
 library(caTools)
 library(caret)
 library(MASS)
+library(glmnet)
 
 ```
 
@@ -52,6 +53,9 @@ all_df <- all_df %>%
 all_df <- all_df %>%
   mutate(fireduration = replace(fireduration, fireduration== as.duration(0), as.duration(43200)))
  
+#change datetime data to numeric for later regression functions
+all_df$fireduration <- as.numeric(all_df$fireduration)
+
 #create averaged values for each fire
 summ_df <- all_df %>%
   group_by(OBJECTID) %>%
@@ -65,14 +69,39 @@ summ_df <- summ_df %>%
 
 #confirm that data seems correct 
 #summary(all_df) 
+```
 
-# Test/Train split
+
+```{r data splitting}
+
+# Test/Train split(s)
  set.seed(1)
  
  data_split = sample.split(all_df, SplitRatio = 0.75) #setting up testing and training split
  train <- subset(all_df, data_split == TRUE)
  test <-subset(all_df, data_split == FALSE)
 
+#seperating into ind and dep variables for later 
+ 
+all_dbr <- all_df$dbr #just dependent variables
+test_dbr <- test$dbr
+train_dbr <- train$dbr
+summ_dbr <- summ_df$dbr
+
+all_ind <- all_df %>% #just independent variables
+  dplyr::select(slope, aspect, dem, LivingBio, DeadBio, fireduration, GIS_ACRES, 
+          month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid)
+test_ind <- test %>% #just independent variables
+  dplyr::select(slope, aspect, dem, LivingBio, DeadBio, fireduration, GIS_ACRES, 
+          month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid)
+train_ind <- train %>% #just independent variables
+  dplyr::select(slope, aspect, dem, LivingBio, DeadBio, fireduration, GIS_ACRES, 
+          month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid)
+summ_ind <- summ_df %>% #just independent variables
+  dplyr::select(slope, aspect, dem, LivingBio, DeadBio, fireduration, GIS_ACRES, 
+          month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid)
+ 
+ 
 ```
 
 ## Set up OLS model
@@ -116,12 +145,6 @@ ggplot(summ_df) +
 
 ```{r OLS stepwise}
 #trying a stepwise function to select only most relevant variables
-
-all_dbr <- all_df$dbr #just dependent variables
-
-all_ind <- all_df %>% #just independent variables
-  dplyr::select(slope, aspect, dem, LivingBio, DeadBio, fireduration, GIS_ACRES, 
-          month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid)
 
 control <- trainControl(method = "repeatedcv", number = 10, selectionFunction = "best") #this controls the settings for the model selection (10-fold cross validation currently)
 
@@ -171,4 +194,43 @@ ggplot(summ_df) + #doesn't seem to make much difference
 
 
 ```
+
+```{r LASSO}
+#trying LASSO
+
+#all data points
+all_x <- as.matrix(all_ind)
+all_y <- as.matrix(all_dbr)
+
+all_lasso <- cv.glmnet(x = all_x, y = all_y, 
+                           family = "gaussian", standardize = TRUE, 
+                           intercept = TRUE, alpha = 1)
+all_df$lasso_dbr <- predict(all_lasso, newx= all_x) 
+
+ggplot(all_df) + #doesn't seem to make much difference
+  geom_point(aes(x = dbr, y = lasso_dbr), alpha = 0.4) +
+  geom_abline(slope = 1) +
+  xlim(0,1000) +
+  ylim(0,1000) +
+  theme_minimal()
+
+#using fire-wide averages
+
+summ_x <- as.matrix(summ_ind)
+summ_y <- as.matrix(summ_dbr)
+
+summ_lasso <- cv.glmnet(x = summ_x, y = summ_y, 
+                           family = "gaussian", standardize = TRUE, 
+                           intercept = TRUE, alpha = 1)
+summ_df$lasso_dbr <- predict(summ_lasso, newx= summ_x) 
+
+ggplot(summ_df) + #doesn't seem to make much difference
+  geom_point(aes(x = dbr, y = lasso_dbr), alpha = 0.4) +
+  geom_abline(slope = 1) +
+  xlim(0,1000) +
+  ylim(0,1000) +
+  theme_minimal()
+
+```
+
 
