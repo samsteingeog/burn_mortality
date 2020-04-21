@@ -17,6 +17,10 @@ library(glmnet)
 
 ```
 
+### Run these files first
+1. ClimateStations_RAWS.Rmd
+2. FireDBR_calcs.Rmd
+
 ## Join data sources
 
 
