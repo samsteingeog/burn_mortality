@@ -1,0 +1,36 @@
+---
+title: "FireDBR_calcs"
+author: "Samantha Hing"
+date: "4/21/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+# load packages
+library(raster)
+```
+
+```{r}
+# download all dbr tif files 
+path = 'data/BurnSev_110Fires/'
+list_files <- list.files(path, pattern = '.tif')
+
+# create raster for each .tif file
+rasterList <- list()
+dbr_means <- vector()
+for (i in 1:length(list_files)) {
+  rasterList[[i]] <- raster(paste0(path, list_files[i]))
+  dbr_means[i] <- cellStats(rasterList[[i]], 'mean') # calculate mean for each raster
+}
+
+# get objectIDs
+OBJECTID <- as.numeric(substr(list_files, 1, 5))
+
+# join data in one data.frame
+dbr_data <- data.frame(OBJECTID, dbr_means)
+```
