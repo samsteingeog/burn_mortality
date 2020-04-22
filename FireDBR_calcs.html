@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 
-<html>
+<html xmlns="http://www.w3.org/1999/xhtml">
 
 <head>
 
 <meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta name="generator" content="pandoc" />
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
@@ -330,7 +331,6 @@ summary {
   border: none;
   display: inline-block;
   border-radius: 4px;
-  background-color: transparent;
 }
 
 .tabset-dropdown > .nav-tabs.nav-tabs-open > li {
@@ -372,19 +372,19 @@ summary {
 <pre class="r"><code># load packages
 library(raster)</code></pre>
 <pre class="r"><code># download all dbr tif files 
-path = 'data/BurnSev_110Fires/'
-list_files &lt;- list.files(path, pattern = '.tif')
+path = &#39;data/BurnSev_110Fires/&#39;
+list_files &lt;- list.files(path, pattern = &#39;.tif&#39;)
 
 # create raster for each .tif file
 rasterList &lt;- list()
 dbr_means &lt;- vector()
 for (i in 1:length(list_files)) {
   rasterList[[i]] &lt;- raster(paste0(path, list_files[i]))
-  dbr_means[i] &lt;- cellStats(rasterList[[i]], 'mean') # calculate mean for each raster
+  dbr_means[i] &lt;- cellStats(rasterList[[i]], &#39;mean&#39;) # calculate mean for each raster
 }
 
 # get objectIDs
-OBJECTID &lt;- substr(list_files, 1, 5)
+OBJECTID &lt;- as.numeric(substr(list_files, 1, 5))
 
 # join data in one data.frame
 dbr_data &lt;- data.frame(OBJECTID, dbr_means)</code></pre>

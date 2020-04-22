@@ -36,7 +36,7 @@ sample_pts$fireduration <- interval(sample_pts$ALARM_DATE, sample_pts$CONT_DATE)
   as.duration()
 ```
 
-```{r make final tables}
+```{r all data tables}
 
 all_data <- full_join(sample_pts, fires_weather, by = "OBJECTID") %>%
   dplyr::select(-ALARM_DATE.y, -CONT_DATE.y, -Shape_Leng.y, -YEAR_, -STATE) #drop extraneous variables
