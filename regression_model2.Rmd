@@ -14,6 +14,7 @@ library(caTools)
 library(caret)
 library(MASS)
 library(glmnet)
+library(randomForest)
 
 ```
 
@@ -301,6 +302,7 @@ ggplot(ave_df) + #doesn't seem to make much difference
 ```{r LASSO all}
 #trying LASSO, RR, and EN
 #LASSO: alpha = 1, Ridge Regression: alpha = 0, Elastic Net: alpha = 0.5
+#all produced similar results
 
 #all data points
 all_x <- as.matrix(all_ind)
@@ -342,17 +344,112 @@ ggplot(ave_df) + #doesn't seem to make much difference
   ylim(0,1000) +
   theme_minimal()
 
-#trash
+#something about LASSO/RR/EN doesn't work with the averaged values
 
 ```
 
+ ## Random Forest 
+ 
+```{r RF all}
+#setting up random forest
 
-```{r RF}
+all_forest = randomForest(x = all_ind, y = all_dbr, ntree = 300, mtry = 5) #documentation recs using 1/3 # of ind variables for mtry
+#tried with various ntree and mtry values and got identical results
 
+all_forest$importance
+#slope/aspect/living bio most important; precip values were least
 
+all_df$rf_dbr <- all_forest$predicted
 
+ggplot(all_df) + #doesn't seem to make much difference
+  geom_point(aes(x = dbr, y = rf_dbr), alpha = 0.4) +
+  geom_abline(slope = 1) +
+  xlim(0,1000) +
+  ylim(0,1000) +
+  theme_minimal()
 
+#improved over fit for OLS/LASSO for sure
 
+```
+
+```{r RF ave}
+#setting up Random Forest
+
+ave_forest = randomForest(x = ave_ind, y = ave_dbr, ntree = 300, mtry = 5) #documentation recs using 1/3 # of ind variables for mtry
+#tried with various ntree and mtry values and got identical results
+
+ave_forest$importance
+#aspect/dem/fireduration/fire size most important; precip values/wind/dead biomass were least
+
+ave_df$rf_dbr <- ave_forest$predicted
+
+ggplot(ave_df) + #doesn't seem to make much difference
+  geom_point(aes(x = dbr_means, y = rf_dbr), alpha = 0.4) +
+  geom_abline(slope = 1) +
+  xlim(0,1000) +
+  ylim(0,1000) +
+  theme_minimal()
+
+#seems to be a slightly worse fit compared to OLS (see below)
+
+# ggplot(ave_df) + #OLS chart
+#   geom_point(aes(x = dbr_means, y = aic_dbr), alpha = 0.4) +
+#   geom_abline(slope = 1) +
+#   xlim(0,1000) +
+#   ylim(0,1000) +
+#   theme_minimal()
+
+```
+
+## Support Vector Machine
+
+```{r SVM all}
+#set up Support Vector Machine
+
+all_svm <- train(all_ind, all_dbr, method = "svmLinear2", trControl = control) #using same cv settings as before w/ stepwise
+
+all_df$svm_dbr <- predict(all_svm, newx = all_df)
+
+ggplot(all_df) + 
+  geom_point(aes(x = dbr, y = svm_dbr), alpha = 0.4) +
+  geom_abline(slope = 1) +
+  xlim(0,1000) +
+  ylim(0,1000) +
+  theme_minimal()
+
+#slightly better than ols but still off, RF is better (see plot below)
+
+# ggplot(all_df) + #RF plot
+#   geom_point(aes(x = dbr, y = rf_dbr), alpha = 0.4) +
+#   geom_abline(slope = 1) +
+#   xlim(0,1000) +
+#   ylim(0,1000) +
+#   theme_minimal()
+
+```
+
+```{r SVM ave}
+#set up Support Vector Machine
+
+ave_svm <- train(ave_ind, ave_dbr, method = "svmLinear2", trControl = control) #using same cv settings as before w/ stepwise
+
+ave_df$svm_dbr <- predict(ave_svm, newx = ave_df)
+
+ggplot(ave_df) + 
+  geom_point(aes(x = dbr_means, y = svm_dbr), alpha = 0.4) +
+  geom_abline(slope = 1) +
+  xlim(0,1000) +
+  ylim(0,1000) +
+  theme_minimal()
+
+#slightly better than ols stepwise (I think?) see plot below
+
+# ggplot(ave_df) + #stepwise OLS plot
+#   geom_point(aes(x = dbr_means, y = step_dbr), alpha = 0.4) +
+#   geom_abline(slope = 1) +
+#   xlim(0,1000) +
+#   ylim(0,1000) +
+#   theme_minimal()
 
 ```
 
