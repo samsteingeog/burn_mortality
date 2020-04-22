@@ -81,10 +81,6 @@ stations_sf <- st_transform(stations_sf, crs = st_crs(fires)) #set crs to match 
 ### Find nearest station to each fire
 
 ```{r nearest}
-#trying using rgeos FAILED
-# nearest <- gNearestPoints(fires_sp[1], station_try)
-# plot(nearest) #only returns one pair of points
-
 #trying using sf
 fire_centers <- st_centroid(fires, of_largest_polygon = FALSE) #creating points for centroid of fires
 

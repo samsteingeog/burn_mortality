@@ -42,6 +42,16 @@ sample_pts$ALARM_DATE <- ymd_hms(sample_pts$ALARM_DATE) #change from char to dat
 sample_pts$CONT_DATE <- ymd_hms(sample_pts$CONT_DATE)
 sample_pts$fireduration <- interval(sample_pts$ALARM_DATE, sample_pts$CONT_DATE) %>% #coerce duration dates into time values
   as.duration()
+
+#adding in summed biomass values (summed across fires)
+sumDB <- read_csv("data/SumDB.txt") %>%
+  dplyr::select(-OBJECTID) %>%
+  rename("OBJECTID" = "FIREID")
+
+sumLB <- read_csv("data/SumLB.txt") %>%
+  dplyr::select(-OBJECTID) %>%
+  rename("OBJECTID" = "FIREID")
+
 ```
 
 ```{r all data tables}
@@ -50,20 +60,25 @@ all_data <- full_join(sample_pts, fires_weather, by = "OBJECTID") %>%
   dplyr::select(-ALARM_DATE.y, -CONT_DATE.y, -Shape_Leng.y, -YEAR_, -STATE) #drop extraneous variables
 
 # make exportable version
- all_df <- all_data %>%
+ all_dat <- all_data %>%
    dplyr::select(-geometry)
 
 # write.csv(all_df, file = "all_data.csv")
 
 #drop missing values for DEM and derived data
 #drop values without info on dbr
-all_df <- all_df %>%  
+all_dat <- all_dat %>%  
   filter(!(dem == -9999)) %>%
   filter(!(dbr == 0)) %>%
+  filter(!(is.na(GIS_ACRES))) %>%
   mutate(fireduration = replace(fireduration, fireduration== as.duration(0), as.duration(43200))) #add in 12 hours of fireduration for fires that started and ended the same day
  
 #change datetime data to numeric for later regression functions
-all_df$fireduration <- as.numeric(all_df$fireduration)
+all_dat$fireduration <- as.numeric(all_dat$fireduration) 
+all_dat$DeadBio <- as.numeric(all_dat$DeadBio)
+
+
+all_dat <- data.frame(all_dat) 
 
 ```
 
@@ -71,8 +86,13 @@ all_df$fireduration <- as.numeric(all_df$fireduration)
 # join all the datasets (averages, weather, dbr)
 ave_data <- full_join(average_data, fires_weather, by = "OBJECTID") %>%
   full_join(dbr_data, by = "OBJECTID") %>%
-  dplyr::select(-YEAR_, -STATE) #drop extraneous variables
-
+  dplyr::select(-YEAR_, -STATE) %>% #drop extraneous variables
+  left_join(sumDB, by = "OBJECTID") %>%
+  dplyr::select(-COUNT, -AREA) %>%
+  rename("DeadBio_SUM" = "SUM") %>%
+  left_join(sumLB, by = "OBJECTID") %>%
+  dplyr::select(-COUNT, -AREA) %>%
+  rename("LiveBio_SUM" = "SUM") 
 # make exportable version
  ave_df <- ave_data %>%
    dplyr::select(-geometry)
@@ -83,14 +103,16 @@ ave_data <- full_join(average_data, fires_weather, by = "OBJECTID") %>%
 #drop values without info on dbr
 ave_df <- ave_df %>%  
   filter(!is.na(DEM_MEAN)) %>%
-  filter(!is.na(dbr_means))
+  filter(!is.na(dbr_means)) %>%
+  filter(!is.na(wind_speed))
 
 # add fire duration to dataframe
 ave_df <- ave_df %>%
   mutate(fireduration = as.duration(interval(ALARM_DATE, CONT_DATE))) %>%
 # add in 12 hours of fireduration for fires that started and ended the same day
   mutate(fireduration = replace(fireduration, fireduration== as.duration(0), as.duration(43200))) %>%
-  mutate(fireduration = as.numeric(fireduration)) # change to numeric
+  mutate(fireduration = as.numeric(fireduration)) %>% # change to numeric
+  data.frame()
 ```
 
 
@@ -99,61 +121,75 @@ ave_df <- ave_df %>%
 ```{r data splitting all}
 
 # Test/Train split(s)
- set.seed(1)
- 
- data_split = sample.split(all_df, SplitRatio = 0.75) #setting up testing and training split
- train <- subset(all_df, data_split == TRUE)
- test <-subset(all_df, data_split == FALSE)
+ # set.seed(1)
+ # 
+ # data_split = sample.split(all_df, SplitRatio = 0.75) #setting up testing and training split
+ # train <- subset(all_df, data_split == TRUE)
+ # test <-subset(all_df, data_split == FALSE)
 
 #seperating into ind and dep variables for later 
  
-all_dbr <- all_df$dbr #just dependent variables
-test_dbr <- test$dbr
-train_dbr <- train$dbr
+all_dbr <- all_dat$dbr #just dependent variables
+# test_dbr <- test$dbr
+# train_dbr <- train$dbr
 
-all_ind <- all_df %>% #just independent variables
+all_ind <- all_dat %>% #just independent variables
   dplyr::select(slope, aspect, dem, LivingBio, DeadBio, fireduration, GIS_ACRES, 
-          month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid)
-test_ind <- test %>% #just independent variables
-  dplyr::select(slope, aspect, dem, LivingBio, DeadBio, fireduration, GIS_ACRES, 
-          month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid)
-train_ind <- train %>% #just independent variables
-  dplyr::select(slope, aspect, dem, LivingBio, DeadBio, fireduration, GIS_ACRES, 
-          month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid)
+          month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid) 
+# test_ind <- test %>% #just independent variables
+#   dplyr::select(slope, aspect, dem, LivingBio, DeadBio, fireduration, GIS_ACRES, 
+#           month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid)
+# train_ind <- train %>% #just independent variables
+#   dplyr::select(slope, aspect, dem, LivingBio, DeadBio, fireduration, GIS_ACRES, 
+#           month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid)
  
+all_df <- cbind(all_dbr, all_ind) %>% #had to create a data table with no NAs for later functions
+  rename("dbr" = "all_dbr")
+
+all_df <- na.omit(all_df)
+
+#re do data frames now that observations with missing data in relevant fields has been removed
+
+all_ind <- all_dat %>% #just independent variables
+  dplyr::select(slope, aspect, dem, LivingBio, DeadBio, fireduration, GIS_ACRES, 
+          month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid) 
+
+all_dbr <- all_dat$dbr #just dependent variables
+
 ```
 
 
 ```{r data splitting ave}
 
 # Test/Train split(s)
- set.seed(1)
- 
- data_split = sample.split(ave_df, SplitRatio = 0.75) #setting up testing and training split
- train
- ave_train<- subset(ave_df, data_split == TRUE)
- ave_test <-subset(ave_df, data_split == FALSE)
+ # set.seed(1)
+ # 
+ # data_split = sample.split(ave_df, SplitRatio = 0.75) #setting up testing and training split
+ # train
+ # ave_train<- subset(ave_df, data_split == TRUE)
+ # ave_test <-subset(ave_df, data_split == FALSE)
 
 #seperating into ind and dep variables for later 
  
 ave_dbr <- ave_df$dbr_means #just dependent variables
-ave_te_dbr <- ave_test$dbr_means
-ave_tr_dbr <- ave_train$dbr_means
+# ave_te_dbr <- ave_test$dbr_means
+# ave_tr_dbr <- ave_train$dbr_means
 #summ_dbr <- summ_df$dbr_means
 
 ave_ind <- ave_df %>% #just independent variables
   dplyr::select(slope_MEAN, aspect_MEAN, DEM_MEAN, LiveBio_MEAN, DeadBio_MEAN, fireduration, GIS_ACRES, 
           month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid)
-ave_te_ind <- ave_test %>% #just independent variables
-  dplyr::select(slope_MEAN, aspect_MEAN, DEM_MEAN, LiveBio_MEAN, DeadBio_MEAN, fireduration, GIS_ACRES, 
+
+ave_ind_alt <- ave_df %>% #trying out summed biomass values (instead of mean)
+  dplyr::select(slope_MEAN, aspect_MEAN, DEM_MEAN, LiveBio_SUM, DeadBio_SUM, fireduration, GIS_ACRES, 
           month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid)
-ave_tr_ind <- ave_train %>% #just independent variables
-  dplyr::select(slope_MEAN, aspect_MEAN, DEM_MEAN, LiveBio_MEAN, DeadBio_MEAN, fireduration, GIS_ACRES, 
-          month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid)
-# summ_ind <- summ_df %>% #just independent variables
+
+# ave_te_ind <- ave_test %>% #just independent variables
 #   dplyr::select(slope_MEAN, aspect_MEAN, DEM_MEAN, LiveBio_MEAN, DeadBio_MEAN, fireduration, GIS_ACRES, 
 #           month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid)
- 
+# ave_tr_ind <- ave_train %>% #just independent variables
+#   dplyr::select(slope_MEAN, aspect_MEAN, DEM_MEAN, LiveBio_MEAN, DeadBio_MEAN, fireduration, GIS_ACRES, 
+#           month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid)
  
 ```
 
@@ -187,17 +223,29 @@ ggplot(all_df) +
 
 #create the model (using all data for now)
 #current model doesn't include precip/temp/humid during the fire or solar radiation data
-ave_ols <- lm(dbr_means ~ slope_MEAN + aspect_MEAN + DEM_MEAN + LiveBio_MEAN + DeadBio_MEAN + fireduration + GIS_ACRES + 
+ave_ols1 <- lm(dbr_means ~ slope_MEAN + aspect_MEAN + DEM_MEAN + LiveBio_MEAN + DeadBio_MEAN + fireduration + GIS_ACRES + 
+          month_temp + week_temp + month_precip + week_precip + wind_speed + month_humid + week_humid, 
+          data = ave_df)
+
+ave_ols2 <- lm(dbr_means ~ slope_MEAN + aspect_MEAN + DEM_MEAN + LiveBio_SUM + DeadBio_SUM + fireduration + GIS_ACRES + 
           month_temp + week_temp + month_precip + week_precip + wind_speed + month_humid + week_humid, 
           data = ave_df)
 
 #summary(ols)
 
 #Check fit 
-ave_df$pred_dbr <- predict(ave_ols, newdata = ave_df)
+ave_df$pred_dbr1 <- predict(ave_ols1, newdata = ave_df)
+ave_df$pred_dbr2 <- predict(ave_ols2, newdata = ave_df)
 
 ggplot(ave_df) +
-  geom_point(aes(x = dbr_means, y = pred_dbr), alpha = 0.4) +
+  geom_point(aes(x = dbr_means, y = pred_dbr1), alpha = 0.4) +
+  geom_abline(slope = 1) +
+  xlim(0,1000) +
+  ylim(0,1000) +
+  theme_minimal()
+
+ggplot(ave_df) +
+  geom_point(aes(x = dbr_means, y = pred_dbr2), alpha = 0.4) +
   geom_abline(slope = 1) +
   xlim(0,1000) +
   ylim(0,1000) +
@@ -210,45 +258,50 @@ ggplot(ave_df) +
 ### Use stepwise approach to OLS
 
 ```{r OLS stepwise all}
+#This suddenly stopped working for no apparent reason?? the best model fit for all data points came from RF anyways, so I'm commenting the failing models out
+
 #trying a stepwise function to select only most relevant variables
 
-control <- trainControl(method = "repeatedcv", number = 10, selectionFunction = "best") #this controls the settings for the model selection (10-fold cross validation currently)
+control <- trainControl(method = "repeatedcv", number = 10) #this controls the settings for the model selection (10-fold cross validation currently)
 
-all_step <- train(x = all_ind, 
-                  y = all_dbr, 
-                  form = all_ols, 
-                  data = all_df,
-                  method = "leapSeq", #stepwise version of function
-                  tuneGrid = data.frame(nvmax = 1:14),
-                  trControl = control) #using settings from above
-
-#summary(all_step)
-
-all_df$step_dbr <- predict(all_step, newdata = all_df) #predict using pared down model
-
-ggplot(all_df) + #doesn't seem to make much difference
-  geom_point(aes(x = dbr, y = step_dbr), alpha = 0.4) +
-  geom_abline(slope = 1) +
-  xlim(0,1000) +
-  ylim(0,1000) +
-  theme_minimal()
-
-#Using a stepwise model selector based on AIC 
-#Input is the linear model (w/ all parameters) derived above 
-#k - degrees of freedom for penalty (2 for true AIC); direction - both (try adding and substracting terms)
-all_AIC <- stepAIC(all_ols, direction = "both", k = 2)
-
-#extractAIC(all_AIC) 
-#summary(all_AIC)
-
-all_df$aic_dbr <- predict(all_AIC, newdata = all_df) #predict using pared down model
-
-ggplot(all_df) + #doesn't seem to make much difference
-  geom_point(aes(x = dbr, y = aic_dbr), alpha = 0.4) +
-  geom_abline(slope = 1) +
-  xlim(0,1000) +
-  ylim(0,1000) +
-  theme_minimal()
+# all_ind1 <- data.frame(all_ind)
+# all_dbr1 <- as.numeric(matrix(all_dbr))
+# 
+# all_step <- train(x = all_ind1, 
+#                   y = all_dbr1, 
+#                   form = all_ols, 
+#                   #data = all_df,
+#                   method = "leapSeq", #stepwise version of function
+#                   tuneGrid = data.frame(nvmax = 1:14),
+#                   trControl = control) #using settings from above
+# 
+# #summary(all_step)
+# 
+# all_df$step_dbr <- predict(all_step, newdata = all_df) #predict using pared down model
+# 
+# ggplot(all_df) + #doesn't seem to make much difference
+#   geom_point(aes(x = dbr, y = step_dbr), alpha = 0.4) +
+#   geom_abline(slope = 1) +
+#   xlim(0,1000) +
+#   ylim(0,1000) +
+#   theme_minimal()
+# 
+# #Using a stepwise model selector based on AIC 
+# #Input is the linear model (w/ all parameters) derived above 
+# #k - degrees of freedom for penalty (2 for true AIC); direction - both (try adding and substracting terms)
+# all_AIC <- stepAIC(all_ols, direction = "both", k = 2)
+# 
+# #extractAIC(all_AIC) 
+# #summary(all_AIC)
+# 
+# all_df$aic_dbr <- predict(all_AIC, newdata = all_df) #predict using pared down model
+# 
+# ggplot(all_df) + #doesn't seem to make much difference
+#   geom_point(aes(x = dbr, y = aic_dbr), alpha = 0.4) +
+#   geom_abline(slope = 1) +
+#   xlim(0,1000) +
+#   ylim(0,1000) +
+#   theme_minimal()
 
 #fits are trash
 
@@ -261,8 +314,8 @@ control <- trainControl(method = "repeatedcv", number = 10, selectionFunction = 
 
 ave_step <- train(x = ave_ind, 
                   y = ave_dbr, 
-                  form = ave_ols, 
-                  data = ave_df,
+                  form = ave_ols1, 
+                 # data = ave_df,
                   method = "leapSeq", #stepwise version of function
                   tuneGrid = data.frame(nvmax = 1:14),
                   trControl = control) #using settings from above
@@ -281,15 +334,23 @@ ggplot(ave_df) + #doesn't seem to make much difference
 #Using a stepwise model selector based on AIC 
 #Input is the linear model (w/ all parameters) derived above 
 #k - degrees of freedom for penalty (2 for true AIC); direction - both (try adding and substracting terms)
-ave_AIC <- stepAIC(ave_ols, direction = "both", k = 2)
-
+ave_AIC1 <- stepAIC(ave_ols1, direction = "both", k = 2)
+ave_AIC2 <- stepAIC(ave_ols2, direction = "both", k = 2)
 #extractAIC(ave_AIC) 
 #summary(ave_AIC)
 
-ave_df$aic_dbr <- predict(ave_AIC, newdata = ave_df) #predict using pared down model
+ave_df$aic_dbr1 <- predict(ave_AIC1, newdata = ave_df) #predict using pared down model
+ave_df$aic_dbr2 <- predict(ave_AIC2, newdata = ave_df) #predict using pared down model
 
 ggplot(ave_df) + #doesn't seem to make much difference
-  geom_point(aes(x = dbr_means, y = aic_dbr), alpha = 0.4) +
+  geom_point(aes(x = dbr_means, y = aic_dbr1), alpha = 0.4) +
+  geom_abline(slope = 1) +
+  xlim(0,1000) +
+  ylim(0,1000) +
+  theme_minimal()
+
+ggplot(ave_df) + #doesn't seem to make much difference
+  geom_point(aes(x = dbr_means, y = aic_dbr2), alpha = 0.4) +
   geom_abline(slope = 1) +
   xlim(0,1000) +
   ylim(0,1000) +
@@ -304,21 +365,23 @@ ggplot(ave_df) + #doesn't seem to make much difference
 #LASSO: alpha = 1, Ridge Regression: alpha = 0, Elastic Net: alpha = 0.5
 #all produced similar results
 
+#started failing, but the fit was bad anyways
+
 #all data points
-all_x <- as.matrix(all_ind)
-all_y <- as.matrix(all_dbr)
+all_x <- data.frame(all_ind)
+all_y <- data.frame(all_dbr)
 
-all_lasso <- cv.glmnet(x = all_x, y = all_y, 
-                           family = "gaussian", standardize = TRUE, 
-                           intercept = TRUE, alpha = 1)
-all_df$lasso_dbr <- predict(all_lasso, newx= all_x) 
-
-ggplot(all_df) + #doesn't seem to make much difference
-  geom_point(aes(x = dbr, y = lasso_dbr), alpha = 0.4) +
-  geom_abline(slope = 1) +
-  xlim(0,1000) +
-  ylim(0,1000) +
-  theme_minimal()
+# all_lasso <- cv.glmnet(x = all_x, y = all_y, 
+#                            family = "gaussian", standardize = TRUE, 
+#                            intercept = TRUE, alpha = 1)
+# all_df$lasso_dbr <- predict(all_lasso, newx= all_x) 
+# 
+# ggplot(all_df) + #doesn't seem to make much difference
+#   geom_point(aes(x = dbr, y = lasso_dbr), alpha = 0.4) +
+#   geom_abline(slope = 1) +
+#   xlim(0,1000) +
+#   ylim(0,1000) +
+#   theme_minimal()
 
 #trash
 ```
@@ -330,7 +393,7 @@ ggplot(all_df) + #doesn't seem to make much difference
 
 #all data points
 ave_x <- as.matrix(ave_ind)
-ave_y <- as.matrix(ave_dbr)
+ave_y <- matrix(ave_dbr)
 
 ave_lasso <- cv.glmnet(x = ave_x, y = ave_y, 
                            family = "gaussian", standardize = TRUE, 
@@ -351,7 +414,11 @@ ggplot(ave_df) + #doesn't seem to make much difference
  ## Random Forest 
  
 ```{r RF all}
+
 #setting up random forest
+
+which(is.na(all_ind$week_humid)) #lines 7596-7865 are NA
+
 
 all_forest = randomForest(x = all_ind, y = all_dbr, ntree = 300, mtry = 5) #documentation recs using 1/3 # of ind variables for mtry
 #tried with various ntree and mtry values and got identical results
@@ -361,27 +428,35 @@ all_forest$importance
 
 all_df$rf_dbr <- all_forest$predicted
 
+png(file = "graphics/rfAll.png")
+
 ggplot(all_df) + #doesn't seem to make much difference
   geom_point(aes(x = dbr, y = rf_dbr), alpha = 0.4) +
   geom_abline(slope = 1) +
   xlim(0,1000) +
   ylim(0,1000) +
-  theme_minimal()
+  theme_minimal() +
+  ggtitle("Random Forest - All Sample Points")
+
+dev.off()
 
 #improved over fit for OLS/LASSO for sure
+
 
 ```
 
 ```{r RF ave}
 #setting up Random Forest
 
-ave_forest = randomForest(x = ave_ind, y = ave_dbr, ntree = 300, mtry = 5) #documentation recs using 1/3 # of ind variables for mtry
+ave_forest <- randomForest(x = ave_ind, y = ave_dbr, ntree = 300, mtry = 5) #documentation recs using 1/3 # of ind variables for mtry
 #tried with various ntree and mtry values and got identical results
+ave_forest_alt <- randomForest(x = ave_ind_alt, y = ave_dbr, ntree = 300, mtry = 5)
 
 ave_forest$importance
 #aspect/dem/fireduration/fire size most important; precip values/wind/dead biomass were least
 
 ave_df$rf_dbr <- ave_forest$predicted
+ave_df$rf_dbr_alt <- ave_forest_alt$predicted
 
 ggplot(ave_df) + #doesn't seem to make much difference
   geom_point(aes(x = dbr_means, y = rf_dbr), alpha = 0.4) +
@@ -390,14 +465,21 @@ ggplot(ave_df) + #doesn't seem to make much difference
   ylim(0,1000) +
   theme_minimal()
 
+ggplot(ave_df) + #the alt is tighter but still not great
+  geom_point(aes(x = dbr_means, y = rf_dbr_alt), alpha = 0.4) +
+  geom_abline(slope = 1) +
+  xlim(0,1000) +
+  ylim(0,1000) +
+  theme_minimal()
+
 #seems to be a slightly worse fit compared to OLS (see below)
 
-# ggplot(ave_df) + #OLS chart
-#   geom_point(aes(x = dbr_means, y = aic_dbr), alpha = 0.4) +
-#   geom_abline(slope = 1) +
-#   xlim(0,1000) +
-#   ylim(0,1000) +
-#   theme_minimal()
+ggplot(ave_df) + #OLS chart
+  geom_point(aes(x = dbr_means, y = pred_dbr2), alpha = 0.4) +
+  geom_abline(slope = 1) +
+  xlim(0,1000) +
+  ylim(0,1000) +
+  theme_minimal()
 
 ```
 
@@ -432,24 +514,50 @@ ggplot(all_df) +
 #set up Support Vector Machine
 
 ave_svm <- train(ave_ind, ave_dbr, method = "svmLinear2", trControl = control) #using same cv settings as before w/ stepwise
+ave_svm_alt <- train(ave_ind_alt, ave_dbr, method = "svmLinear2", trControl = control) 
 
 ave_df$svm_dbr <- predict(ave_svm, newx = ave_df)
+ave_df$svm_dbr_alt <- predict(ave_svm_alt, newx = ave_df)
 
-ggplot(ave_df) + 
+ggplot(ave_df) +  #using means seems better here
   geom_point(aes(x = dbr_means, y = svm_dbr), alpha = 0.4) +
   geom_abline(slope = 1) +
   xlim(0,1000) +
   ylim(0,1000) +
   theme_minimal()
 
+png(file = "graphics/SVMAve.png")
+
+ggplot(ave_df) + 
+  geom_point(aes(x = dbr_means, y = svm_dbr_alt), alpha = 0.4) +
+  geom_abline(slope = 1) +
+  xlim(0,1000) +
+  ylim(0,1000) +
+  theme_minimal() +
+  ggtitle("SVM Average Data (Biomass_Sum)")
+
+dev.off()
+
 #slightly better than ols stepwise (I think?) see plot below
 
-# ggplot(ave_df) + #stepwise OLS plot
-#   geom_point(aes(x = dbr_means, y = step_dbr), alpha = 0.4) +
-#   geom_abline(slope = 1) +
-#   xlim(0,1000) +
-#   ylim(0,1000) +
-#   theme_minimal()
+png(file = "graphics/StepAve.png")
+
+ggplot(ave_df) + #stepwise OLS plot
+  geom_point(aes(x = dbr_means, y = aic_dbr1), alpha = 0.4) +
+  geom_abline(slope = 1) +
+  xlim(0,1000) +
+  ylim(0,1000) +
+  theme_minimal() +
+  ggtitle("Stepwise OLS (Biomass_Mean)")
+
+dev.off()
+
+ggplot(ave_df) + #stepwise OLS plot
+  geom_point(aes(x = dbr_means, y = pred_dbr2), alpha = 0.4) +
+  geom_abline(slope = 1) +
+  xlim(0,1000) +
+  ylim(0,1000) +
+  theme_minimal()
 
 ```
 
