@@ -52,6 +52,10 @@ sumLB <- read_csv("data/SumLB.txt") %>%
   dplyr::select(-OBJECTID) %>%
   rename("OBJECTID" = "FIREID")
 
+meanTD <- read_csv("data/MeanTD.txt") %>%
+  dplyr::select(-OBJECTID) %>%
+  rename("OBJECTID" = "FIREID")
+
 ```
 
 ```{r all data tables}
@@ -92,7 +96,10 @@ ave_data <- full_join(average_data, fires_weather, by = "OBJECTID") %>%
   rename("DeadBio_SUM" = "SUM") %>%
   left_join(sumLB, by = "OBJECTID") %>%
   dplyr::select(-COUNT, -AREA) %>%
-  rename("LiveBio_SUM" = "SUM") 
+  rename("LiveBio_SUM" = "SUM") %>%
+  left_join(meanTD, by = "OBJECTID") %>%
+  dplyr::select(-COUNT, -AREA) %>%
+  rename("TreeDens" = "MEAN") 
 # make exportable version
  ave_df <- ave_data %>%
    dplyr::select(-geometry)
@@ -177,11 +184,11 @@ ave_dbr <- ave_df$dbr_means #just dependent variables
 #summ_dbr <- summ_df$dbr_means
 
 ave_ind <- ave_df %>% #just independent variables
-  dplyr::select(slope_MEAN, aspect_MEAN, DEM_MEAN, LiveBio_MEAN, DeadBio_MEAN, fireduration, GIS_ACRES, 
+  dplyr::select(slope_MEAN, aspect_MEAN, DEM_MEAN, LiveBio_MEAN, DeadBio_MEAN, TreeDens, fireduration, GIS_ACRES, 
           month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid)
 
 ave_ind_alt <- ave_df %>% #trying out summed biomass values (instead of mean)
-  dplyr::select(slope_MEAN, aspect_MEAN, DEM_MEAN, LiveBio_SUM, DeadBio_SUM, fireduration, GIS_ACRES, 
+  dplyr::select(slope_MEAN, aspect_MEAN, DEM_MEAN, LiveBio_SUM, DeadBio_SUM, TreeDens, fireduration, GIS_ACRES, 
           month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid)
 
 # ave_te_ind <- ave_test %>% #just independent variables
@@ -223,11 +230,11 @@ ggplot(all_df) +
 
 #create the model (using all data for now)
 #current model doesn't include precip/temp/humid during the fire or solar radiation data
-ave_ols1 <- lm(dbr_means ~ slope_MEAN + aspect_MEAN + DEM_MEAN + LiveBio_MEAN + DeadBio_MEAN + fireduration + GIS_ACRES + 
+ave_ols1 <- lm(dbr_means ~ slope_MEAN + aspect_MEAN + DEM_MEAN + LiveBio_MEAN + DeadBio_MEAN + TreeDens + fireduration + GIS_ACRES + 
           month_temp + week_temp + month_precip + week_precip + wind_speed + month_humid + week_humid, 
           data = ave_df)
 
-ave_ols2 <- lm(dbr_means ~ slope_MEAN + aspect_MEAN + DEM_MEAN + LiveBio_SUM + DeadBio_SUM + fireduration + GIS_ACRES + 
+ave_ols2 <- lm(dbr_means ~ slope_MEAN + aspect_MEAN + DEM_MEAN + LiveBio_SUM + DeadBio_SUM + TreeDens + fireduration + GIS_ACRES + 
           month_temp + week_temp + month_precip + week_precip + wind_speed + month_humid + week_humid, 
           data = ave_df)
 
@@ -258,6 +265,9 @@ ggplot(ave_df) +
 
 dev.off()
 #Fit is getting better!
+
+sum(abs(ave_ols1$residuals))
+sum(abs(ave_ols2$residuals))
 
 ```
 

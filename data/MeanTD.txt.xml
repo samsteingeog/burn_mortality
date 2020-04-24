@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata xml:lang="en"><Esri><CreaDate>20200424</CreaDate><CreaTime>01412000</CreaTime><ArcGISFormat>1.0</ArcGISFormat><SyncOnce>TRUE</SyncOnce><DataProperties><lineage><Process ToolSource="c:\program files (x86)\arcgis\desktop10.7\ArcToolbox\Toolboxes\Spatial Analyst Tools.tbx\ZonalStatisticsAsTable" Date="20200424" Time="014006">ZonalStatisticsAsTable 110fires_sample FIREID TreeDensity C:\Users\samps\OneDrive\Documents\ArcGIS\Default.gdb\TreeDensMean DATA MEAN</Process></lineage></DataProperties></Esri></metadata>
