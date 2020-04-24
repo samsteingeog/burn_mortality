@@ -29,7 +29,6 @@ rmarkdown::render('./FireDBR_calcs.Rmd') # gives us dbr dataframe ("dbr_data")
 ```
 
 ## Join data sources
-
 ```{r read data}
 # read in average data csv file
 # gives us elevation, slope, aspect averages for whole fire

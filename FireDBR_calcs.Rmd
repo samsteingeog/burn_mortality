@@ -31,6 +31,9 @@ for (i in 1:length(list_files)) {
 # get objectIDs
 OBJECTID <- as.numeric(substr(list_files, 1, 5))
 
+# name rasters
+names(rasterList) <- OBJECTID
+
 # join data in one data.frame
 dbr_data <- data.frame(OBJECTID, dbr_means)
 ```
