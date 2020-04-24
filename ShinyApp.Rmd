@@ -86,11 +86,7 @@ server <- function(input, output, session) {
       addTiles() %>% # Add default OpenStreetMap map tiles
       addProviderTiles("Esri.WorldImagery") %>%
       addMarkers(data = x, lat = ~Y, lng = ~X, layerId = ~OBJECTID) 
-    # %>%
-    #   addRasterImage(rasterList[[3]]) 
-    # %>%
-    #   setView(-119.4179, 36.7783, zoom = 5)  # set map to center of California
-  })
+      })
   
   # show image
     # fire_chosen <- reactive({input$fires})
