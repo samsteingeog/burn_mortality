@@ -1,0 +1,75 @@
+---
+title: "Deadbiomass"
+author: "Samantha Hing"
+date: "4/24/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# load packages
+library(raster)
+library(sf)
+library(ggplot2)
+
+```
+
+```{r}
+# load previous files
+rmarkdown::render('./FireDBR_calcs.Rmd') # gives us dbr dataframe ("dbr_data") & rasterList
+
+# download dead biomass tif file
+dead_biomass <- raster("data/DeadBiomass110.tif")
+
+# read 110 fire shapefile
+fire_polygons <- st_read('data/fire_data/110fires_sample.shp')
+
+fire_polygons_geom <- fire_polygons$geometry
+
+```
+
+
+```{r}
+fire1 <- fire_polygons_geom[1]
+st_crs(fire1)
+
+# method 1
+raster1 <- rasterList[[2]]
+crs1 <- crs(dead_biomass)
+raster2 <- projectRaster(raster1, crs1)
+crs(raster2)
+x <- extent(raster2)
+y <- crop(dead_biomass, x)
+y <- projectRaster(y, crs = crs(rasterList[[2]]))
+
+# method 2
+fire1_proj <- st_transform(fire_polygons_geom[1], crs(dead_biomass))
+extent <- fire1_proj
+extent_sp <- as_Spatial(extent)
+dead_biomass1 <- crop(x= dead_biomass, y = extent_sp)
+
+# check that it worked
+plot(dead_biomass1)
+plot(fire1_proj)
+plot(rasterList$`20500`)
+
+
+#dead_biomass2 <- projectRaster(dead_biomass, crs = crs(rasterList[[2]]))
+
+extentList <- list() # initialize extent list
+# get extent of fires
+for (i in length(rasterList)) {
+  extentList[[i]] <- extent(rasterList[[i]])
+  
+}
+
+# plot dead_biomass
+ggplot() +
+  geom_raster(aes(y)) +
+  geom_raster(raster1)
+
+#hrr_sf2 = st_transform(hrr_sf, 26978) 
+
+```
+
+
+
