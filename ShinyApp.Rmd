@@ -1,0 +1,130 @@
+---
+title: "ShinyApp"
+author: "Samantha Hing"
+date: "4/23/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# load packages
+library(leaflet)
+library(shiny)
+library(shinythemes)
+library(tidyverse)
+library(raster)
+
+```
+
+### Run these files first
+```{r}
+# Run these files to get data frames
+# Maybe we should turn them into .R files instead?
+rmarkdown::render('./ClimateStations_RAWS.Rmd') # gives us weather dataframe ("fires_weather")
+rmarkdown::render('./FireDBR_calcs.Rmd') # gives us dbr dataframe ("dbr_data")
+
+# name rasters by ObjectID
+names(rasterList) <- OBJECTID
+
+average_data <- read_csv("data/avg_std.csv") # delete??
+
+```
+# data prep
+```{r}
+# get centroid of fires
+fires <- fires %>%
+  mutate(centroids = st_centroid(geometry))
+fires_points <- fires$centroids
+fires_points <- st_transform(fires_points, 4326)
+x <- as.data.frame(st_coordinates(fires_points))
+x <- x %>% mutate(OBJECTID = as.character(fires$OBJECTID))
+```
+
+# User Interface
+```{r}
+ui <- fluidPage (
+  titlePanel("California Wildfires 2017"), #make better title later
+  theme = shinythemes::shinytheme('simplex'),
+  
+  sidebarLayout(
+    sidebarPanel(
+      selectInput('results', 'Pick Results to See', choices = c('DBR', 'dead biomass', 'live biomass')),
+      #selectInput('fires', 'Select Fire', choices = names(rasterList)),
+      leaflet::leafletOutput('dbr_map')
+      # plotOutput('dbr_plot')
+    
+    ),
+    
+    
+  
+    mainPanel(
+      leaflet::leafletOutput('map', width = '100%') # add map
+      #tableOutput(outputId = "table")
+    )
+  )
+
+)
+
+```
+
+# Server
+```{r}
+
+
+server <- function(input, output, session) {
+  
+  fire_chosen <- reactive({rasterList[[input$fires]]})
+
+  # create map  
+  output$map <- leaflet::renderLeaflet({
+    leaflet(
+      options = leafletOptions(zoomControl = FALSE,
+                     dragging = FALSE)) %>% 
+      addTiles() %>% # Add default OpenStreetMap map tiles
+      addProviderTiles("Esri.WorldImagery") %>%
+      addMarkers(data = x, lat = ~Y, lng = ~X, layerId = ~OBJECTID) 
+    # %>%
+    #   addRasterImage(rasterList[[3]]) 
+    # %>%
+    #   setView(-119.4179, 36.7783, zoom = 5)  # set map to center of California
+  })
+  
+  # show image
+    # fire_chosen <- reactive({input$fires})
+    # output$dbr_plot <- renderPlot(rasterList$`fire_chosen`)
+    # #renderImage()
+    # output$dbr_map <- renderLeaflet({
+    #   leaflet() %>% 
+    #     addTiles %>% 
+    #     addRasterImage(fire_chosen()) 
+    # })
+  
+    observeEvent(input$map_marker_click, {
+      click <- input$map_marker_click
+    
+      fire_chosen <- reactive({rasterList[[click$id]]})
+      
+      output$dbr_map <- renderLeaflet({
+      leaflet() %>% 
+        addTiles %>% 
+        addProviderTiles("Esri.WorldImagery") %>%
+        addRasterImage(fire_chosen()) 
+      })
+    
+     })
+ 
+  
+}
+
+
+```
+
+# Run Shiny
+```{r}
+shinyApp(ui = ui, server = server)
+
+
+```
