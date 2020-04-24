@@ -15,6 +15,7 @@ library(caret)
 library(MASS)
 library(glmnet)
 library(randomForest)
+library(e1071)
 
 ```
 
@@ -244,13 +245,19 @@ ggplot(ave_df) +
   ylim(0,1000) +
   theme_minimal()
 
+png(filename = "graphics/olsAve.png")
+
 ggplot(ave_df) +
   geom_point(aes(x = dbr_means, y = pred_dbr2), alpha = 0.4) +
   geom_abline(slope = 1) +
   xlim(0,1000) +
   ylim(0,1000) +
-  theme_minimal()
+  theme_minimal() +
+  ggtitle("OLS Average Data (Biomass_Sum)") +
+  xlab("Mean dBR") + 
+  ylab("Predicted Mean dBR")
 
+dev.off()
 #Fit is getting better!
 
 ```
@@ -262,7 +269,7 @@ ggplot(ave_df) +
 
 #trying a stepwise function to select only most relevant variables
 
-control <- trainControl(method = "repeatedcv", number = 10) #this controls the settings for the model selection (10-fold cross validation currently)
+# control <- trainControl(method = "repeatedcv", number = 10) #this controls the settings for the model selection (10-fold cross validation currently)
 
 # all_ind1 <- data.frame(all_ind)
 # all_dbr1 <- as.numeric(matrix(all_dbr))
@@ -417,11 +424,12 @@ ggplot(ave_df) + #doesn't seem to make much difference
 
 #setting up random forest
 
-which(is.na(all_ind$week_humid)) #lines 7596-7865 are NA
-
-
+#which(is.na(all_ind)) #confirm that no NAs still exist
 all_forest = randomForest(x = all_ind, y = all_dbr, ntree = 300, mtry = 5) #documentation recs using 1/3 # of ind variables for mtry
+# all_forest2 = randomForest(formula = dbr~., data = all_df, ntree = 300, mtry = 5) 
 #tried with various ntree and mtry values and got identical results
+
+mean(all_forest$mse) #sum of MSE: 9616657; ave: 32055
 
 all_forest$importance
 #slope/aspect/living bio most important; precip values were least
@@ -436,7 +444,9 @@ ggplot(all_df) + #doesn't seem to make much difference
   xlim(0,1000) +
   ylim(0,1000) +
   theme_minimal() +
-  ggtitle("Random Forest - All Sample Points")
+  ggtitle("Random Forest - All Sample Points") +
+  xlab("dBR") + 
+  ylab("Predicted dBR")
 
 dev.off()
 
@@ -453,6 +463,7 @@ ave_forest <- randomForest(x = ave_ind, y = ave_dbr, ntree = 300, mtry = 5) #doc
 ave_forest_alt <- randomForest(x = ave_ind_alt, y = ave_dbr, ntree = 300, mtry = 5)
 
 ave_forest$importance
+ave_forest_alt$importance
 #aspect/dem/fireduration/fire size most important; precip values/wind/dead biomass were least
 
 ave_df$rf_dbr <- ave_forest$predicted
@@ -519,6 +530,9 @@ ave_svm_alt <- train(ave_ind_alt, ave_dbr, method = "svmLinear2", trControl = co
 ave_df$svm_dbr <- predict(ave_svm, newx = ave_df)
 ave_df$svm_dbr_alt <- predict(ave_svm_alt, newx = ave_df)
 
+ave_svm_1 <- svm(x = ave_ind, y = ave_dbr)
+ave_df$svm_dbr1 <- predict(ave_svm_1, newx = ave_df)
+
 ggplot(ave_df) +  #using means seems better here
   geom_point(aes(x = dbr_means, y = svm_dbr), alpha = 0.4) +
   geom_abline(slope = 1) +
@@ -534,7 +548,9 @@ ggplot(ave_df) +
   xlim(0,1000) +
   ylim(0,1000) +
   theme_minimal() +
-  ggtitle("SVM Average Data (Biomass_Sum)")
+  ggtitle("SVM Average Data (Biomass_Sum)") +
+  xlab("Mean dBR") + 
+  ylab("Predicted Mean dBR")
 
 dev.off()
 
@@ -548,7 +564,9 @@ ggplot(ave_df) + #stepwise OLS plot
   xlim(0,1000) +
   ylim(0,1000) +
   theme_minimal() +
-  ggtitle("Stepwise OLS (Biomass_Mean)")
+  ggtitle("Stepwise OLS (Biomass_Mean)") +
+  xlab("Mean dBR") + 
+  ylab("Predicted Mean dBR")
 
 dev.off()
 
