@@ -15,13 +15,24 @@ Run fire selection, climate stations, and regression model rmds first
 ```{r scatter plots}
 
 ggplot(all_df) + 
-  geom_point(aes(x = slope, y = dbr)) 
+  geom_point(aes(x = dem, y = dbr)) +
+  theme_minimal()
 
-ggplot(summ_df) + 
-  geom_point(aes(x = week_humid, y = dbr))
+ggplot(all_df) + 
+  geom_point(aes(x = LivingBio, y = dbr)) +
+  theme_minimal() +
+  xlab("Live Biomass") +
+  ylab("dBR")
 
-ggplot(summ_df) + 
-  geom_point(aes(x = wind_speed, y = dbr))
+ggplot(ave_df) + 
+  geom_point(aes(x = month_humid, y = dbr_means)) +
+  theme_minimal()
+
+ggplot(ave_df) + 
+  geom_point(aes(x = LiveBio_SUM, y = dbr_means)) +
+  theme_minimal() +
+  xlab("Live Biomass (summed across fire)") +
+  ylab("dBR")
 
 ```
 

@@ -266,6 +266,7 @@ ggplot(ave_df) +
 dev.off()
 #Fit is getting better!
 
+#sum of the residuals for each
 sum(abs(ave_ols1$residuals))
 sum(abs(ave_ols2$residuals))
 
@@ -352,8 +353,9 @@ ggplot(ave_df) + #doesn't seem to make much difference
 #k - degrees of freedom for penalty (2 for true AIC); direction - both (try adding and substracting terms)
 ave_AIC1 <- stepAIC(ave_ols1, direction = "both", k = 2)
 ave_AIC2 <- stepAIC(ave_ols2, direction = "both", k = 2)
-#extractAIC(ave_AIC) 
-#summary(ave_AIC)
+
+sum(abs(ave_AIC1$residuals))
+sum(abs(ave_AIC2$residuals)) #second version with summed biomass performs slightly better
 
 ave_df$aic_dbr1 <- predict(ave_AIC1, newdata = ave_df) #predict using pared down model
 ave_df$aic_dbr2 <- predict(ave_AIC2, newdata = ave_df) #predict using pared down model
@@ -541,6 +543,10 @@ ave_df$svm_dbr_alt <- predict(ave_svm_alt, newx = ave_df)
 
 ave_svm_1 <- svm(x = ave_ind, y = ave_dbr)
 ave_df$svm_dbr1 <- predict(ave_svm_1, newx = ave_df)
+
+sum(abs(ave_svm_1$residuals)) #Check residuals; best for all models so far
+
+#plots w/ OLS comparison
 
 ggplot(ave_df) +  #using means seems better here
   geom_point(aes(x = dbr_means, y = svm_dbr), alpha = 0.4) +
