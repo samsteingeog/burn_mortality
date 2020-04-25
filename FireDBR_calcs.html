@@ -386,6 +386,9 @@ for (i in 1:length(list_files)) {
 # get objectIDs
 OBJECTID &lt;- as.numeric(substr(list_files, 1, 5))
 
+# name rasters
+names(rasterList) &lt;- OBJECTID
+
 # join data in one data.frame
 dbr_data &lt;- data.frame(OBJECTID, dbr_means)</code></pre>
 

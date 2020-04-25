@@ -18,7 +18,7 @@ library(ggplot2)
 rmarkdown::render('./FireDBR_calcs.Rmd') # gives us dbr dataframe ("dbr_data") & rasterList
 
 # download dead biomass tif file
-dead_biomass <- raster("data/DeadBiomass110.tif")
+dead_biomass <- raster("../data/DeadBiomass110.tif")
 
 # read 110 fire shapefile
 fire_polygons <- st_read('data/fire_data/110fires_sample.shp')
@@ -42,6 +42,7 @@ y <- crop(dead_biomass, x)
 y <- projectRaster(y, crs = crs(rasterList[[2]]))
 
 # method 2
+fires_projected <- st_transform(fire_polygons_geom, crs(dead_biomass))
 fire1_proj <- st_transform(fire_polygons_geom[1], crs(dead_biomass))
 extent <- fire1_proj
 extent_sp <- as_Spatial(extent)
