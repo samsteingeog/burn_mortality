@@ -219,6 +219,11 @@ ave_wind <- weather %>%
   group_by(OBJECTID) %>% 
   summarise(wind_speed = mean(wind_avg_mph, na.rm = TRUE))
 
+#Max wind speed
+max_wind <- weather %>%
+  filter(fires == TRUE) %>%
+  group_by(OBJECTID) %>% 
+  summarise(wind_max = mean(wind_max_mph, na.rm = TRUE))
 
 ```
 
@@ -237,7 +242,8 @@ all_weather <- full_join(month_temp, week_temp) %>%
   full_join(dur_humid) %>%
   full_join(month_sol) %>%
   full_join(week_sol) %>%
-  full_join(ave_wind)
+  full_join(ave_wind) %>%
+  full_join(max_wind)
 
 fires_weather <- full_join(fires_wstns, all_weather, by = "OBJECTID")
 

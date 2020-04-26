@@ -440,11 +440,7 @@ stations_sf &lt;- st_transform(stations_sf, crs = st_crs(fires)) #set crs to mat
 </div>
 <div id="find-nearest-station-to-each-fire" class="section level3">
 <h3>Find nearest station to each fire</h3>
-<pre class="r"><code>#trying using rgeos FAILED
-# nearest &lt;- gNearestPoints(fires_sp[1], station_try)
-# plot(nearest) #only returns one pair of points
-
-#trying using sf
+<pre class="r"><code>#trying using sf
 fire_centers &lt;- st_centroid(fires, of_largest_polygon = FALSE) #creating points for centroid of fires</code></pre>
 <pre><code>## Warning in st_centroid.sf(fires, of_largest_polygon = FALSE): st_centroid
 ## assumes attributes are constant over geometries of x</code></pre>
@@ -579,7 +575,13 @@ week_sol &lt;- weather %&gt;%
 ave_wind &lt;- weather %&gt;%
   filter(fires == TRUE) %&gt;%
   group_by(OBJECTID) %&gt;% 
-  summarise(wind_speed = mean(wind_avg_mph, na.rm = TRUE))</code></pre>
+  summarise(wind_speed = mean(wind_avg_mph, na.rm = TRUE))
+
+#Max wind speed
+max_wind &lt;- weather %&gt;%
+  filter(fires == TRUE) %&gt;%
+  group_by(OBJECTID) %&gt;% 
+  summarise(wind_speed = mean(wind_max_mph, na.rm = TRUE))</code></pre>
 <pre class="r"><code>#combine calculated weather data
 
 ##all_weather &lt;- st_join(month_temp, week_temp, left = TRUE) #error here
@@ -593,7 +595,8 @@ all_weather &lt;- full_join(month_temp, week_temp) %&gt;%
   full_join(dur_humid) %&gt;%
   full_join(month_sol) %&gt;%
   full_join(week_sol) %&gt;%
-  full_join(ave_wind)</code></pre>
+  full_join(ave_wind) %&gt;%
+  full_join(max_wind)</code></pre>
 <pre><code>## Joining, by = &quot;OBJECTID&quot;
 ## Joining, by = &quot;OBJECTID&quot;
 ## Joining, by = &quot;OBJECTID&quot;
@@ -604,6 +607,7 @@ all_weather &lt;- full_join(month_temp, week_temp) %&gt;%
 ## Joining, by = &quot;OBJECTID&quot;
 ## Joining, by = &quot;OBJECTID&quot;
 ## Joining, by = &quot;OBJECTID&quot;</code></pre>
+<pre><code>## Joining, by = c(&quot;OBJECTID&quot;, &quot;wind_speed&quot;)</code></pre>
 <pre class="r"><code>fires_weather &lt;- full_join(fires_wstns, all_weather, by = &quot;OBJECTID&quot;)
 
 #st_write(fires_weather, dsn = &quot;./data/fire_data/fires_weather3.shp&quot;, layer = &quot;fires_weather3.shp&quot;)</code></pre>
@@ -614,10 +618,10 @@ length(objectIDs_1)</code></pre>
 <pre><code>## [1] 110</code></pre>
 <pre class="r"><code>objectIDs_2 &lt;- unique(month_temp$OBJECTID)
 length(objectIDs_2)</code></pre>
-<pre><code>## [1] 110</code></pre>
+<pre><code>## [1] 109</code></pre>
 <pre class="r"><code>objectIDs_missing &lt;- objectIDs_1[!(objectIDs_1 %in% objectIDs_2)]
 objectIDs_missing</code></pre>
-<pre><code>## numeric(0)</code></pre>
+<pre><code>## [1] 20560</code></pre>
 <p>```</p>
 </div>
 </div>

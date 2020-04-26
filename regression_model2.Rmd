@@ -16,6 +16,7 @@ library(MASS)
 library(glmnet)
 library(randomForest)
 library(e1071)
+library(rminer)
 
 ```
 
@@ -56,6 +57,11 @@ meanTD <- read_csv("data/MeanTD.txt") %>%
   dplyr::select(-OBJECTID) %>%
   rename("OBJECTID" = "FIREID")
 
+VegCover <- read_csv("data/VegTypeSum.txt") %>%
+  dplyr::select(-OBJECTID) %>%
+  rename("OBJECTID" = "FIREID", "conifer" = "VALUE_1", "shrub" = "VALUE_2", "herbaceous" = "VALUE_3", "barren_other" = "VALUE_4", 
+         "urban" = "VALUE_5", "hardwood" = "VALUE_6", "water" = "VALUE_7", "agricultural" = "VALUE_8")
+
 ```
 
 ```{r all data tables}
@@ -75,6 +81,7 @@ all_dat <- all_dat %>%
   filter(!(dem == -9999)) %>%
   filter(!(dbr == 0)) %>%
   filter(!(is.na(GIS_ACRES))) %>%
+  filter(!(is.na(wind_max))) %>%
   mutate(fireduration = replace(fireduration, fireduration== as.duration(0), as.duration(43200))) #add in 12 hours of fireduration for fires that started and ended the same day
  
 #change datetime data to numeric for later regression functions
@@ -87,7 +94,7 @@ all_dat <- data.frame(all_dat)
 ```
 
 ```{r ave data tables}
-# join all the datasets (averages, weather, dbr)
+# join all the datasets (averages, weather, dbr, biomass, landcover type)
 ave_data <- full_join(average_data, fires_weather, by = "OBJECTID") %>%
   full_join(dbr_data, by = "OBJECTID") %>%
   dplyr::select(-YEAR_, -STATE) %>% #drop extraneous variables
@@ -99,7 +106,8 @@ ave_data <- full_join(average_data, fires_weather, by = "OBJECTID") %>%
   rename("LiveBio_SUM" = "SUM") %>%
   left_join(meanTD, by = "OBJECTID") %>%
   dplyr::select(-COUNT, -AREA) %>%
-  rename("TreeDens" = "MEAN") 
+  rename("TreeDens" = "MEAN") %>%
+  left_join(VegCover, by = "OBJECTID")
 # make exportable version
  ave_df <- ave_data %>%
    dplyr::select(-geometry)
@@ -111,7 +119,8 @@ ave_data <- full_join(average_data, fires_weather, by = "OBJECTID") %>%
 ave_df <- ave_df %>%  
   filter(!is.na(DEM_MEAN)) %>%
   filter(!is.na(dbr_means)) %>%
-  filter(!is.na(wind_speed))
+  filter(!is.na(wind_speed)) %>%
+  filter(!is.na(wind_max))
 
 # add fire duration to dataframe
 ave_df <- ave_df %>%
@@ -120,6 +129,8 @@ ave_df <- ave_df %>%
   mutate(fireduration = replace(fireduration, fireduration== as.duration(0), as.duration(43200))) %>%
   mutate(fireduration = as.numeric(fireduration)) %>% # change to numeric
   data.frame()
+
+
 ```
 
 
@@ -142,7 +153,7 @@ all_dbr <- all_dat$dbr #just dependent variables
 
 all_ind <- all_dat %>% #just independent variables
   dplyr::select(slope, aspect, dem, LivingBio, DeadBio, fireduration, GIS_ACRES, 
-          month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid) 
+          month_temp, week_temp, month_precip, week_precip, wind_speed, wind_max, month_humid, week_humid) 
 # test_ind <- test %>% #just independent variables
 #   dplyr::select(slope, aspect, dem, LivingBio, DeadBio, fireduration, GIS_ACRES, 
 #           month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid)
@@ -155,11 +166,12 @@ all_df <- cbind(all_dbr, all_ind) %>% #had to create a data table with no NAs fo
 
 all_df <- na.omit(all_df)
 
+
 #re do data frames now that observations with missing data in relevant fields has been removed
 
 all_ind <- all_dat %>% #just independent variables
   dplyr::select(slope, aspect, dem, LivingBio, DeadBio, fireduration, GIS_ACRES, 
-          month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid) 
+          month_temp, week_temp, month_precip, week_precip, wind_speed, wind_max, month_humid, week_humid) 
 
 all_dbr <- all_dat$dbr #just dependent variables
 
@@ -178,6 +190,8 @@ all_dbr <- all_dat$dbr #just dependent variables
 
 #seperating into ind and dep variables for later 
  
+ave_df_og <- ave_df
+
 ave_dbr <- ave_df$dbr_means #just dependent variables
 # ave_te_dbr <- ave_test$dbr_means
 # ave_tr_dbr <- ave_train$dbr_means
@@ -185,11 +199,13 @@ ave_dbr <- ave_df$dbr_means #just dependent variables
 
 ave_ind <- ave_df %>% #just independent variables
   dplyr::select(slope_MEAN, aspect_MEAN, DEM_MEAN, LiveBio_MEAN, DeadBio_MEAN, TreeDens, fireduration, GIS_ACRES, 
-          month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid)
+          month_temp, week_temp, month_precip, week_precip, wind_speed, wind_max,  month_humid, week_humid, 
+          conifer, shrub, herbaceous, barren_other, urban, hardwood, water, agricultural)
 
 ave_ind_alt <- ave_df %>% #trying out summed biomass values (instead of mean)
   dplyr::select(slope_MEAN, aspect_MEAN, DEM_MEAN, LiveBio_SUM, DeadBio_SUM, TreeDens, fireduration, GIS_ACRES, 
-          month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid)
+          month_temp, week_temp, month_precip, week_precip, wind_speed, wind_max, month_humid, week_humid, 
+          conifer, shrub, herbaceous, barren_other, urban, hardwood, water, agricultural)
 
 # ave_te_ind <- ave_test %>% #just independent variables
 #   dplyr::select(slope_MEAN, aspect_MEAN, DEM_MEAN, LiveBio_MEAN, DeadBio_MEAN, fireduration, GIS_ACRES, 
@@ -207,10 +223,13 @@ ave_ind_alt <- ave_df %>% #trying out summed biomass values (instead of mean)
 #create the model (using all data for now)
 #current model doesn't include precip/temp/humid during the fire or solar radiation data
 all_ols <- lm(dbr ~ slope + aspect + dem + LivingBio + DeadBio + fireduration + GIS_ACRES + 
-          month_temp + week_temp + month_precip + week_precip + wind_speed + month_humid + week_humid, 
+          month_temp + week_temp + month_precip + week_precip + wind_speed + wind_max + month_humid + week_humid, 
           data = all_df)
 
-#summary(ols)
+#check residuals 
+sum(abs(all_ols$residuals)) 
+#1347610 w/out max wind
+#1334108 w/ max wind
 
 #Check fit 
 all_df$pred_dbr <- predict(all_ols, newdata = all_df)
@@ -231,12 +250,14 @@ ggplot(all_df) +
 #create the model (using all data for now)
 #current model doesn't include precip/temp/humid during the fire or solar radiation data
 ave_ols1 <- lm(dbr_means ~ slope_MEAN + aspect_MEAN + DEM_MEAN + LiveBio_MEAN + DeadBio_MEAN + TreeDens + fireduration + GIS_ACRES + 
-          month_temp + week_temp + month_precip + week_precip + wind_speed + month_humid + week_humid, 
-          data = ave_df)
+          month_temp + week_temp + month_precip + week_precip + wind_speed + wind_max + month_humid + week_humid +
+          conifer + shrub + herbaceous + barren_other + urban + hardwood + water + agricultural, 
+          data = ave_df_og)
 
 ave_ols2 <- lm(dbr_means ~ slope_MEAN + aspect_MEAN + DEM_MEAN + LiveBio_SUM + DeadBio_SUM + TreeDens + fireduration + GIS_ACRES + 
-          month_temp + week_temp + month_precip + week_precip + wind_speed + month_humid + week_humid, 
-          data = ave_df)
+          month_temp + week_temp + month_precip + week_precip + wind_speed + wind_max + month_humid + week_humid +
+          conifer + shrub + herbaceous + barren_other + urban + hardwood + water + agricultural,
+          data = ave_df_og)
 
 #summary(ols)
 
@@ -267,8 +288,8 @@ dev.off()
 #Fit is getting better!
 
 #sum of the residuals for each
-sum(abs(ave_ols1$residuals))
-sum(abs(ave_ols2$residuals))
+sum(abs(ave_ols1$residuals)) #9057 w/out max wind; 8659 w/ max wind, 8546 w/ veg cover
+sum(abs(ave_ols2$residuals)) #8980 w/out max wind; 8633 w/ max wind, 8750 w/ veg cover
 
 ```
 
@@ -332,9 +353,9 @@ control <- trainControl(method = "repeatedcv", number = 10, selectionFunction = 
 ave_step <- train(x = ave_ind, 
                   y = ave_dbr, 
                   form = ave_ols1, 
-                 # data = ave_df,
+                  #data = ave_df_og,
                   method = "leapSeq", #stepwise version of function
-                  tuneGrid = data.frame(nvmax = 1:14),
+                  tuneGrid = data.frame(nvmax = 1:15),
                   trControl = control) #using settings from above
 
 #summary(all_step)
@@ -354,8 +375,9 @@ ggplot(ave_df) + #doesn't seem to make much difference
 ave_AIC1 <- stepAIC(ave_ols1, direction = "both", k = 2)
 ave_AIC2 <- stepAIC(ave_ols2, direction = "both", k = 2)
 
-sum(abs(ave_AIC1$residuals))
-sum(abs(ave_AIC2$residuals)) #second version with summed biomass performs slightly better
+#Check sum of residuals
+sum(abs(ave_AIC1$residuals)) # 9292 w/out max wind; 9099 w/, 8825 w/ veg
+sum(abs(ave_AIC2$residuals)) # 9066 w/out max wind; 8930 w/, 8834 w/ veg
 
 ave_df$aic_dbr1 <- predict(ave_AIC1, newdata = ave_df) #predict using pared down model
 ave_df$aic_dbr2 <- predict(ave_AIC2, newdata = ave_df) #predict using pared down model
@@ -440,7 +462,8 @@ all_forest = randomForest(x = all_ind, y = all_dbr, ntree = 300, mtry = 5) #docu
 # all_forest2 = randomForest(formula = dbr~., data = all_df, ntree = 300, mtry = 5) 
 #tried with various ntree and mtry values and got identical results
 
-mean(all_forest$mse) #sum of MSE: 9616657; ave: 32055
+sum(all_forest$mse) #sum of MSE w/out wind: 9616657; ave: 32055
+                    #sum of MSE w/ wind: 9674473; ave: 32248
 
 all_forest$importance
 #slope/aspect/living bio most important; precip values were least
@@ -533,7 +556,8 @@ ggplot(all_df) +
 ```
 
 ```{r SVM ave}
-#set up Support Vector Machine
+#Set up Support Vector Machine in 3 methods w/ 3 different results
+#broadly best fit but I'm worried about how overfit the models are
 
 ave_svm <- train(ave_ind, ave_dbr, method = "svmLinear2", trControl = control) #using same cv settings as before w/ stepwise
 ave_svm_alt <- train(ave_ind_alt, ave_dbr, method = "svmLinear2", trControl = control) 
@@ -541,24 +565,52 @@ ave_svm_alt <- train(ave_ind_alt, ave_dbr, method = "svmLinear2", trControl = co
 ave_df$svm_dbr <- predict(ave_svm, newx = ave_df)
 ave_df$svm_dbr_alt <- predict(ave_svm_alt, newx = ave_df)
 
-ave_svm_1 <- svm(x = ave_ind, y = ave_dbr)
-ave_df$svm_dbr1 <- predict(ave_svm_1, newx = ave_df)
+#check residuals
+sum(abs(ave_df$svm_dbr-ave_df$dbr_means)) #8492 w/ wind max, 8038 w/ veg
+sum(abs(ave_df$svm_dbr_alt-ave_df$dbr_means)) #8469 w/ wind max, 8350 w/ veg
 
-sum(abs(ave_svm_1$residuals)) #Check residuals; best for all models so far
+#Testing a different SVM method
+
+ave_svm_1 <- svm(x = ave_ind, y = ave_dbr)
+ave_svm_alt_1 <- svm(x = ave_ind_alt, y = ave_dbr)
+
+ave_df$svm_dbr1 <- predict(ave_svm_1, newx = ave_df)
+ave_df$svm_dbr1_alt <- predict(ave_svm_alt_1, newx = ave_df)
+
+sum(abs(ave_svm_1$residuals)) #Check residuals; best for all models so far 6188 w/out wind; 5998 w/ wind, 6175 w/ veg
+sum(abs(ave_svm_alt_1$residuals)) #Check residuals; best for all models so far, 5888 w/ wind, 6302 w/ veg
+
+#Trying one more way to try to extract importance
+M <- fit(ave_dbr~., data=ave_ind, model="svm", kpar=list(sigma=0.10), C=2)
+svm.imp <- Importance(M, data=ave_ind)
+#svm.imp$imp
+
+M_alt <- fit(ave_dbr~., data=ave_ind_alt, model="svm", kpar=list(sigma=0.10), C=2)
+svm_imp_alt <- Importance(M_alt, data=ave_ind_alt)
+#svm_imp_alt$imp
+
+ave_df$svm_m_dbr <- predict(M, newdata = ave_ind)
+ave_df$svm_m_dbr_alt <- predict(M_alt, newdata = ave_ind_alt)
+
+#check residuals
+sum(abs(ave_df$svm_m_dbr-ave_df$dbr_means)) #3308 w/ wind max, 2814 w/ veg
+sum(abs(ave_df$svm_m_dbr_alt-ave_df$dbr_means)) #3284 w/ wind max, 3001 w/ veg
+
+#best residuals and fit, but model seems severly overfit; will test with T/T split to confirm
 
 #plots w/ OLS comparison
 
-ggplot(ave_df) +  #using means seems better here
+ggplot(ave_df) +  
   geom_point(aes(x = dbr_means, y = svm_dbr), alpha = 0.4) +
   geom_abline(slope = 1) +
   xlim(0,1000) +
   ylim(0,1000) +
   theme_minimal()
 
-png(file = "graphics/SVMAve.png")
+png(file = "graphics/SVMAve1.png")
 
 ggplot(ave_df) + 
-  geom_point(aes(x = dbr_means, y = svm_dbr_alt), alpha = 0.4) +
+  geom_point(aes(x = dbr_means, y = svm_dbr1_alt), alpha = 0.4) +
   geom_abline(slope = 1) +
   xlim(0,1000) +
   ylim(0,1000) +
@@ -569,7 +621,7 @@ ggplot(ave_df) +
 
 dev.off()
 
-#slightly better than ols stepwise (I think?) see plot below
+#better than stepwise or ols,  see plot below
 
 png(file = "graphics/StepAve.png")
 
