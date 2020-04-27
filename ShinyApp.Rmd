@@ -72,8 +72,6 @@ ui <- fluidPage (
 
 # Server
 ```{r}
-
-
 server <- function(input, output, session) {
   
   fire_chosen <- reactive({rasterList[[input$fires]]})
@@ -98,6 +96,11 @@ server <- function(input, output, session) {
     #     addRasterImage(fire_chosen()) 
     # })
   
+  # dbr color palette for legend
+  # pal_dbr <- colorNumeric(
+  #   palette = grDevices::heat.colors()
+  # )
+  
     observeEvent(input$map_marker_click, {
       click <- input$map_marker_click
     
@@ -107,7 +110,8 @@ server <- function(input, output, session) {
       leaflet() %>% 
         addTiles %>% 
         addProviderTiles("Esri.WorldImagery") %>%
-        addRasterImage(fire_chosen()) 
+        addRasterImage(fire_chosen()) %>%
+        addLegend(position = "bottomright")
       })
     
      })

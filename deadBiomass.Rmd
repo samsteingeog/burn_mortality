@@ -15,61 +15,54 @@ library(ggplot2)
 
 ```{r}
 # load previous files
-rmarkdown::render('./FireDBR_calcs.Rmd') # gives us dbr dataframe ("dbr_data") & rasterList
+#rmarkdown::render('./FireDBR_calcs.Rmd') # gives us dbr dataframe ("dbr_data") & rasterList
 
 # download dead biomass tif file
-dead_biomass <- raster("../data/DeadBiomass110.tif")
+dead_biomass <- raster("../data/DeadBiomass110.tif") # you have to download this file onto your personal computer (not on git)
 
 # read 110 fire shapefile
-fire_polygons <- st_read('data/fire_data/110fires_sample.shp')
-
-fire_polygons_geom <- fire_polygons$geometry
+fire_polygons <- st_read('data/fire_data/110fires_sample.shp') # fire polygons
 
 ```
 
 
 ```{r}
-fire1 <- fire_polygons_geom[1]
-st_crs(fire1)
+# Need to crop dead biomass file by each fire polygon
 
-# method 1
-raster1 <- rasterList[[2]]
-crs1 <- crs(dead_biomass)
-raster2 <- projectRaster(raster1, crs1)
-crs(raster2)
-x <- extent(raster2)
-y <- crop(dead_biomass, x)
-y <- projectRaster(y, crs = crs(rasterList[[2]]))
+# store fire polygon geometry separately
+fire_polygons_geom <- st_geometry(fire_polygons)
+names(fire_polygons_geom) <- fire_polygons$OBJECTID
+#$geometry
 
-# method 2
+# match fire projection to dead biomass projection
 fires_projected <- st_transform(fire_polygons_geom, crs(dead_biomass))
-fire1_proj <- st_transform(fire_polygons_geom[1], crs(dead_biomass))
-extent <- fire1_proj
-extent_sp <- as_Spatial(extent)
-dead_biomass1 <- crop(x= dead_biomass, y = extent_sp)
+
+# check CRS's match
+st_crs(fires_projected)
+crs(dead_biomass)
+
+# for one fire = delete later
+extent <- as_Spatial(fires_projected[1])
+dead_biomass_1 <- crop(x = dead_biomass, y = extent)
 
 # check that it worked
 plot(dead_biomass1)
 plot(fire1_proj)
 plot(rasterList$`20500`)
 
-
-#dead_biomass2 <- projectRaster(dead_biomass, crs = crs(rasterList[[2]]))
-
-extentList <- list() # initialize extent list
-# get extent of fires
-for (i in length(rasterList)) {
-  extentList[[i]] <- extent(rasterList[[i]])
-  
+# crop dead biomass for all fires
+dead_biomassList <- list() # initialize empty list
+for (i in 1:length(fires_projected)) {
+  extent <- as_Spatial(fires_projected[i])
+  dead_biomassList[[i]] <- crop(x = dead_biomass, y = extent)
 }
 
-# plot dead_biomass
-ggplot() +
-  geom_raster(aes(y)) +
-  geom_raster(raster1)
+# name the dead_biomass list by Object IDs
+names(dead_biomassList) <- fire_polygons$OBJECTID
 
-#hrr_sf2 = st_transform(hrr_sf, 26978) 
-
+# check a few
+plot(dead_biomassList[[100]])
+plot(fires_projected[100])
 ```
 
 
