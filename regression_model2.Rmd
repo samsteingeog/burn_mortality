@@ -175,6 +175,11 @@ all_ind <- all_dat %>% #just independent variables
 
 all_dbr <- all_dat$dbr #just dependent variables
 
+# all_export <- cbind(all_dat$OBJECTID, all_ind, all_dbr)
+# 
+# write.csv(all_export, file = "data/all_export.csv")
+ 
+
 ```
 
 
@@ -213,6 +218,10 @@ ave_ind_alt <- ave_df %>% #trying out summed biomass values (instead of mean)
 # ave_tr_ind <- ave_train %>% #just independent variables
 #   dplyr::select(slope_MEAN, aspect_MEAN, DEM_MEAN, LiveBio_MEAN, DeadBio_MEAN, fireduration, GIS_ACRES, 
 #           month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid)
+# 
+# ave_export_sum <- cbind(ave_df$OBJECTID, ave_ind_alt, ave_dbr)
+# 
+# write.csv(ave_export_sum, file = "data/ave_export_sum.csv")
  
 ```
 
