@@ -372,9 +372,25 @@ summary {
 <div id="load-packages" class="section level4">
 <h4>Load packages</h4>
 <pre class="r"><code>library(readr)
-library(dplyr)
-library(tidyr)
-library(sf)
+library(dplyr)</code></pre>
+<pre><code>## 
+## Attaching package: 'dplyr'</code></pre>
+<pre><code>## The following objects are masked from 'package:raster':
+## 
+##     intersect, select, union</code></pre>
+<pre><code>## The following objects are masked from 'package:stats':
+## 
+##     filter, lag</code></pre>
+<pre><code>## The following objects are masked from 'package:base':
+## 
+##     intersect, setdiff, setequal, union</code></pre>
+<pre class="r"><code>library(tidyr)</code></pre>
+<pre><code>## 
+## Attaching package: 'tidyr'</code></pre>
+<pre><code>## The following object is masked from 'package:raster':
+## 
+##     extract</code></pre>
+<pre class="r"><code>library(sf)
 library(sp)
 library(rnaturalearth)
 library(ggplot2)
@@ -388,8 +404,13 @@ library(rgdal)</code></pre>
 ##  Path to PROJ.4 shared files: /Library/Frameworks/R.framework/Versions/3.6/Resources/library/rgdal/proj
 ##  Linking to sp version: 1.3-2</code></pre>
 <pre class="r"><code>library(nngeo)
-library(lubridate)
-library(fs)
+library(lubridate)</code></pre>
+<pre><code>## 
+## Attaching package: 'lubridate'</code></pre>
+<pre><code>## The following object is masked from 'package:base':
+## 
+##     date</code></pre>
+<pre class="r"><code>library(fs)
 library(purrr)</code></pre>
 </div>
 <div id="read-in-data" class="section level4">
@@ -450,9 +471,8 @@ stations_sf &lt;- st_transform(stations_sf, crs = st_crs(fires)) #set crs to mat
 <h3>Find nearest station to each fire</h3>
 <pre class="r"><code>#trying using sf
 fire_centers &lt;- st_centroid(fires, of_largest_polygon = FALSE) #creating points for centroid of fires</code></pre>
-<pre><code>## Warning in st_centroid.sf(fires, of_largest_polygon =
-## FALSE): st_centroid assumes attributes are constant over
-## geometries of x</code></pre>
+<pre><code>## Warning in st_centroid.sf(fires, of_largest_polygon = FALSE): st_centroid assumes attributes are
+## constant over geometries of x</code></pre>
 <pre class="r"><code>#table of just station names by index number
 station_names &lt;- data.frame(stations$station) %&gt;%
   mutate(station_index = 1:490)
@@ -461,10 +481,10 @@ station_names &lt;- data.frame(stations$station) %&gt;%
 backups &lt;- st_nn(fire_centers, stations_sf, k = 3) #modified to select three closest neighbors</code></pre>
 <pre><code>## projected points</code></pre>
 <pre><code>## 
-  |                                                     
-  |                                               |   0%
-  |                                                     
-  |===============================================| 100%</code></pre>
+  |                                                                                                  
+  |                                                                                            |   0%
+  |                                                                                                  
+  |============================================================================================| 100%</code></pre>
 <pre class="r"><code>stn_backups &lt;- data.frame(matrix(unlist(backups), ncol = max(lengths(backups)), byrow = TRUE)) #get into df
 
 #join data
@@ -495,10 +515,8 @@ data_dir &lt;- fs::dir_ls(data_dir) #create directory
 raw_weather &lt;- data_dir %&gt;%  #read in all csvs into one table
   map_dfr(read_csv, col_types = cols(&quot;date&quot; = col_date(format = &quot;%m/%d/%y&quot;))) %&gt;%
   dplyr::select(1:19) </code></pre>
-<pre><code>## Warning: Missing column names filled in: 'X20' [20],
-## 'X21' [21], 'X22' [22], 'X23' [23], 'X24' [24]</code></pre>
-<pre><code>## Warning: Missing column names filled in: 'X21' [21],
-## 'X22' [22], 'X23' [23], 'X24' [24], 'X25' [25],
+<pre><code>## Warning: Missing column names filled in: 'X20' [20], 'X21' [21], 'X22' [22], 'X23' [23], 'X24' [24]</code></pre>
+<pre><code>## Warning: Missing column names filled in: 'X21' [21], 'X22' [22], 'X23' [23], 'X24' [24], 'X25' [25],
 ## 'X26' [26], 'X27' [27]</code></pre>
 <pre class="r"><code>#create correct time intervals
 
@@ -607,12 +625,9 @@ all_weather &lt;- full_join(month_temp, week_temp) %&gt;%
   full_join(week_sol) %&gt;%
   full_join(ave_wind) %&gt;%
   full_join(max_wind)</code></pre>
-<pre><code>## Joining, by = &quot;OBJECTID&quot;Joining, by = &quot;OBJECTID&quot;Joining,
-## by = &quot;OBJECTID&quot;Joining, by = &quot;OBJECTID&quot;Joining,
-## by = &quot;OBJECTID&quot;Joining, by = &quot;OBJECTID&quot;Joining,
-## by = &quot;OBJECTID&quot;Joining, by = &quot;OBJECTID&quot;Joining, by
-## = &quot;OBJECTID&quot;Joining, by = &quot;OBJECTID&quot;Joining, by =
-## &quot;OBJECTID&quot;</code></pre>
+<pre><code>## Joining, by = &quot;OBJECTID&quot;Joining, by = &quot;OBJECTID&quot;Joining, by = &quot;OBJECTID&quot;Joining, by =
+## &quot;OBJECTID&quot;Joining, by = &quot;OBJECTID&quot;Joining, by = &quot;OBJECTID&quot;Joining, by = &quot;OBJECTID&quot;Joining, by =
+## &quot;OBJECTID&quot;Joining, by = &quot;OBJECTID&quot;Joining, by = &quot;OBJECTID&quot;Joining, by = &quot;OBJECTID&quot;</code></pre>
 <pre class="r"><code>fires_weather &lt;- full_join(fires_wstns, all_weather, by = &quot;OBJECTID&quot;)
 
 #st_write(fires_weather, dsn = &quot;./data/fire_data/fires_weather3.shp&quot;, layer = &quot;fires_weather3.shp&quot;)</code></pre>

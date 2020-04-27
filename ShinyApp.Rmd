@@ -25,11 +25,14 @@ library(raster)
 # Maybe we should turn them into .R files instead?
 rmarkdown::render('./ClimateStations_RAWS.Rmd') # gives us weather dataframe ("fires_weather")
 rmarkdown::render('./FireDBR_calcs.Rmd') # gives us dbr dataframe ("dbr_data")
+rmarkdown::render('./dead&liveBiomass.Rmd') # gives us list of dead & live biomass rasters ("live_biomassList" & "dead_biomassList")
 
 # name rasters by ObjectID
-names(rasterList) <- OBJECTID
+names(rasterList) <- OBJECTID 
 
-average_data <- read_csv("data/avg_std.csv") # delete??
+average_data <- read_csv("data/ave_export_sum.csv") # gives average data
+
+
 
 ```
 # data prep
@@ -51,18 +54,22 @@ ui <- fluidPage (
   
   sidebarLayout(
     sidebarPanel(
-      selectInput('results', 'Pick Results to See', choices = c('DBR', 'dead biomass', 'live biomass')),
-      #selectInput('fires', 'Select Fire', choices = names(rasterList)),
-      leaflet::leafletOutput('dbr_map')
-      # plotOutput('dbr_plot')
-    
+      # selectInput('results', 'Pick Results to See', choices = c('DBR', 'dead biomass', 'live biomass')),
+      
+      
+      # dbr map
+      leaflet::leafletOutput('dbr_map'),
+     
+      # live biomass map
+      leaflet::leafletOutput('livebiomass_map')
     ),
     
     
   
     mainPanel(
-      leaflet::leafletOutput('map', width = '100%') # add map
-      #tableOutput(outputId = "table")
+      leaflet::leafletOutput('map', width = '100%'), # add map
+      
+      DT::DTOutput(outputId = "table")
     )
   )
 
@@ -73,10 +80,8 @@ ui <- fluidPage (
 # Server
 ```{r}
 server <- function(input, output, session) {
-  
-  fire_chosen <- reactive({rasterList[[input$fires]]})
-
-  # create map  
+ 
+  # create map of California with a marker for each fire
   output$map <- leaflet::renderLeaflet({
     leaflet(
       options = leafletOptions(zoomControl = FALSE,
@@ -85,6 +90,8 @@ server <- function(input, output, session) {
       addProviderTiles("Esri.WorldImagery") %>%
       addMarkers(data = x, lat = ~Y, lng = ~X, layerId = ~OBJECTID) 
       })
+  
+
   
   # show image
     # fire_chosen <- reactive({input$fires})
@@ -110,10 +117,31 @@ server <- function(input, output, session) {
       leaflet() %>% 
         addTiles %>% 
         addProviderTiles("Esri.WorldImagery") %>%
-        addRasterImage(fire_chosen()) %>%
-        addLegend(position = "bottomright")
+        addRasterImage(fire_chosen())
+        #%>%
+        #addLegend(position = "bottomright")
       })
-    
+      
+      # live biomass for selected fire
+      livebiomass_fire <- reactive({live_biomassList[[click$id]]})
+
+      output$livebiomass_map <- renderLeaflet({
+      leaflet() %>% 
+        addTiles %>% 
+        addProviderTiles("Esri.WorldImagery") %>%
+        addRasterImage(livebiomass_fire()) 
+        #%>%
+        #addLegend(position = "bottomright")
+      })
+      
+      #create table for average weather data for each fire
+      output$table <- DT::renderDT({
+        average_data %>%
+          filter(`ave_df$OBJECTID`== click$id) %>%
+          dplyr::select(month_temp, week_temp, month_precip, week_precip, 
+                        wind_speed, wind_max, month_humid, week_humid)
+      })
+      
      })
  
   

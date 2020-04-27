@@ -20,14 +20,17 @@ library(ggplot2)
 # download dead biomass tif file
 dead_biomass <- raster("../data/DeadBiomass110.tif") # you have to download this file onto your personal computer (not on git)
 
+# download live biomass tif file
+live_biomass <- raster("../data/LivingBiomass110.tif") # you have to download this file onto your personal computer (not on git)
+
 # read 110 fire shapefile
 fire_polygons <- st_read('data/fire_data/110fires_sample.shp') # fire polygons
 
 ```
 
-
+# Dead Biomass
 ```{r}
-# Need to crop dead biomass file by each fire polygon
+# Need to crop DEAD biomass file by each fire polygon
 
 # store fire polygon geometry separately
 fire_polygons_geom <- st_geometry(fire_polygons)
@@ -46,8 +49,8 @@ extent <- as_Spatial(fires_projected[1])
 dead_biomass_1 <- crop(x = dead_biomass, y = extent)
 
 # check that it worked
-plot(dead_biomass1)
-plot(fire1_proj)
+plot(dead_biomass_1)
+plot(fires_projected[1])
 plot(rasterList$`20500`)
 
 # crop dead biomass for all fires
@@ -64,6 +67,49 @@ names(dead_biomassList) <- fire_polygons$OBJECTID
 plot(dead_biomassList[[100]])
 plot(fires_projected[100])
 ```
+
+# Live Biomass
+```{r}
+# Need to crop LIVE biomass file by each fire polygon
+
+# already done above
+# # store fire polygon geometry separately
+# fire_polygons_geom <- st_geometry(fire_polygons)
+# names(fire_polygons_geom) <- fire_polygons$OBJECTID
+
+
+# match fire projection to live biomass projection
+fires_projected <- st_transform(fire_polygons_geom, crs(live_biomass))
+
+# check CRS's match
+st_crs(fires_projected)
+crs(live_biomass)
+
+# for one fire = delete later
+extent <- as_Spatial(fires_projected[1])
+live_biomass1 <- crop(x = live_biomass, y = extent)
+
+# check that it worked
+plot(live_biomass1)
+plot(fires_projected[1])
+
+# crop live biomass for all fires
+live_biomassList <- list() # initialize empty list
+for (i in 1:length(fires_projected)) {
+  extent <- as_Spatial(fires_projected[i])
+  live_biomassList[[i]] <- crop(x = live_biomass, y = extent)
+}
+
+# name the live_biomass list by Object IDs
+names(live_biomassList) <- fire_polygons$OBJECTID
+
+# check a few
+plot(live_biomassList[[16]])
+plot(fires_projected[16])
+```
+
+
+
 
 
 
