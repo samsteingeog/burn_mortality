@@ -23,14 +23,17 @@ library(raster)
 ```{r}
 # Run these files to get data frames
 # Maybe we should turn them into .R files instead?
-rmarkdown::render('./ClimateStations_RAWS.Rmd') # gives us weather dataframe ("fires_weather")
-rmarkdown::render('./FireDBR_calcs.Rmd') # gives us dbr dataframe ("dbr_data")
+# rmarkdown::render('./ClimateStations_RAWS.Rmd') # gives us weather dataframe ("fires_weather")
+# rmarkdown::render('./FireDBR_calcs.Rmd') # gives us dbr dataframe ("dbr_data")
 rmarkdown::render('./dead&liveBiomass.Rmd') # gives us list of dead & live biomass rasters ("live_biomassList" & "dead_biomassList")
+rmarkdown::render('./regression_model2.Rmd') # gives us dataframes: fires_weather, ave_data, dbr_data
 
 # name rasters by ObjectID
 names(rasterList) <- OBJECTID 
 
-average_data <- read_csv("data/ave_export_sum.csv") # gives average data
+#average_data <- read_csv("data/ave_export_sum.csv") # gives average data
+
+
 
 
 
@@ -49,31 +52,27 @@ x <- x %>% mutate(OBJECTID = as.character(fires$OBJECTID))
 # User Interface
 ```{r}
 ui <- fluidPage (
-  titlePanel("California Wildfires 2017"), #make better title later
+  navbarPage("DS421 Project",
+  #titlePanel("California Wildfires 2017"), #make better title later
   theme = shinythemes::shinytheme('simplex'),
+  tabPanel("About"),
   
-  sidebarLayout(
-    sidebarPanel(
+      
+  tabPanel("Fire Data",
       # selectInput('results', 'Pick Results to See', choices = c('DBR', 'dead biomass', 'live biomass')),
-      
-      
-      # dbr map
-      leaflet::leafletOutput('dbr_map'),
-     
-      # live biomass map
-      leaflet::leafletOutput('livebiomass_map')
+    sidebarPanel(
+      leaflet::leafletOutput('dbr_map'), # dbr map
+      leaflet::leafletOutput('livebiomass_map'), # live biomass map
+      leaflet::leafletOutput('deadbiomass_map')
     ),
-    
-    
-  
     mainPanel(
-      leaflet::leafletOutput('map', width = '100%'), # add map
-      
-      DT::DTOutput(outputId = "table")
+      leaflet::leafletOutput('map', width = '100%'),  # add CA map
+      DT::DTOutput(outputId = "table") # weather table
     )
+  ),
+  tabPanel("Model Results")
   )
-
-)
+  )
 
 ```
 
@@ -111,8 +110,10 @@ server <- function(input, output, session) {
 
  
     observeEvent(input$map_marker_click, {
+      # user clicks fire
       click <- input$map_marker_click
     
+      # DBR map
       fire_chosen <- reactive({rasterList[[click$id]]})
       
       output$dbr_map <- renderLeaflet({
@@ -131,7 +132,8 @@ server <- function(input, output, session) {
         )
       })
       
-      # live biomass for selected fire
+      # Live Biomass Map
+      # live biomass raster for selected fire
       livebiomass_fire <- reactive({live_biomassList[[click$id]]})
        
       # define legend inputs for live biomass maps
@@ -151,15 +153,39 @@ server <- function(input, output, session) {
                   title = "live biomass (kg/ha)")
       })
       
-      #create table for average weather data for each fire
-      output$table <- DT::renderDT({
-        average_data %>%
-          filter(`ave_df$OBJECTID`== click$id) %>%
-          dplyr::select(month_temp, week_temp, month_precip, week_precip, 
-                        wind_speed, wind_max, month_humid, week_humid)
-      })
-      
-     })
+     #  # Dead Biomass Map
+     #  # dead biomass raster for selected fire
+     #  deadbiomass_fire <- reactive({dead_biomassList[[click$id]]})
+     #   
+     #  # define legend inputs for live biomass maps
+     #  domainDB <- cellStats(deadbiomass_fire(), "range")
+     #  paletteDB <- colorNumeric("BrBG", domain = domainDB, na.color = "transparent")
+     # 
+     # 
+     #  output$deadbiomass_map <- renderLeaflet({
+     #  leaflet() %>% 
+     #    addTiles %>% 
+     #    addProviderTiles("Esri.WorldImagery") %>%
+     #    addRasterImage(deadbiomass_fire(), colors = paletteDB, opacity = 1) %>%
+     #    addLegend(position = "bottomleft",
+     #              pal = paletteDB,
+     #              values = domainDB, 
+     #              opacity = 0.7,
+     #              title = "dead biomass (kg/ha)")
+     #  })
+     # 
+     #  
+     #  
+     #  # Summary Table
+     #  # create table for average weather data for each fire
+     #  output$table <- DT::renderDT({
+     #    ave_data %>%
+     #      filter(FIREID == click$id) %>%
+     #      dplyr::select(month_temp, week_temp, month_precip, week_precip, 
+     #                    wind_speed, wind_max, month_humid, week_humid)
+     #  })
+     #  
+        })
  
   
 }
