@@ -103,11 +103,13 @@ server <- function(input, output, session) {
     #     addRasterImage(fire_chosen()) 
     # })
   
-  # dbr color palette for legend
-  # pal_dbr <- colorNumeric(
-  #   palette = grDevices::heat.colors()
-  # )
-  
+  # define legend inputs for DBR maps
+  colorsDBR = c("darkgreen", "forestgreen", "limegreen", "yellow", "orange", "orangered", "purple")
+  binsDBR = c(-1000, -251, -101, 99, 269, 439, 659, 2000)
+  paletteDBR <- colorBin(palette = colorsDBR, bins = binsDBR, domain = binsDBR, na.color = "transparent")
+  labelsDBR = c("Enhanced Regrowth, High", "Enhanced Regrowth, Low", "Unburned", "Low Severity", "Modereat-Low Severity", "Moderate-High Severity", "High Severity")
+
+ 
     observeEvent(input$map_marker_click, {
       click <- input$map_marker_click
     
@@ -117,21 +119,36 @@ server <- function(input, output, session) {
       leaflet() %>% 
         addTiles %>% 
         addProviderTiles("Esri.WorldImagery") %>%
-        addRasterImage(fire_chosen())
-        #%>%
-        #addLegend(position = "bottomright")
+        addRasterImage(fire_chosen(), colors = paletteDBR, opacity = 0.8) %>%
+        addLegend(position = "bottomleft",
+                  pal = paletteDBR,
+                  values = binsDBR,
+                  opacity = 0.7,
+                  title = "dNBR Classes",
+                  labFormat = function(type, cuts, p) {
+                    paste0(labelsDBR)
+                  }
+        )
       })
       
       # live biomass for selected fire
       livebiomass_fire <- reactive({live_biomassList[[click$id]]})
+       
+      # define legend inputs for live biomass maps
+      domainLB <- cellStats(livebiomass_fire(), "range")
+      paletteLB <- colorNumeric("Greens", domain = domainLB, na.color = "transparent")
+  
 
       output$livebiomass_map <- renderLeaflet({
       leaflet() %>% 
         addTiles %>% 
         addProviderTiles("Esri.WorldImagery") %>%
-        addRasterImage(livebiomass_fire()) 
-        #%>%
-        #addLegend(position = "bottomright")
+        addRasterImage(livebiomass_fire(), colors = paletteLB, opacity = 1) %>%
+        addLegend(position = "bottomleft",
+                  pal = paletteLB,
+                  values = domainLB, 
+                  opacity = 0.7,
+                  title = "live biomass (kg/ha)")
       })
       
       #create table for average weather data for each fire
