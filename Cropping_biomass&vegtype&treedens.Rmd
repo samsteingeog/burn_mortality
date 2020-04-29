@@ -56,7 +56,7 @@ dead_biomass_1 <- crop(x = dead_biomass, y = extent)
 # check that it worked
 plot(dead_biomass_1)
 plot(fires_projected[1])
-plot(rasterList$`20500`)
+
 
 # crop dead biomass for all fires
 dead_biomassList <- list() # initialize empty list

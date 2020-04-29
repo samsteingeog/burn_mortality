@@ -25,7 +25,7 @@ library(raster)
 # Maybe we should turn them into .R files instead?
 # rmarkdown::render('./ClimateStations_RAWS.Rmd') # gives us weather dataframe ("fires_weather")
 # rmarkdown::render('./FireDBR_calcs.Rmd') # gives us dbr dataframe ("dbr_data")
-rmarkdown::render('./dead&liveBiomass.Rmd') # gives us list of dead & live biomass rasters ("live_biomassList" & "dead_biomassList")
+rmarkdown::render('./Cropping_biomass&vegtype&treedens.Rmd') # gives us list of dead & live biomass rasters ("live_biomassList" & "dead_biomassList") and vegtype rasters ("veg_typeList"), and tree density rasters ("tree_densityList")
 rmarkdown::render('./regression_model2.Rmd') # gives us dataframes: fires_weather, ave_data, dbr_data
 
 # name rasters by ObjectID
@@ -63,7 +63,9 @@ ui <- fluidPage (
     sidebarPanel(
       leaflet::leafletOutput('dbr_map'), # dbr map
       leaflet::leafletOutput('livebiomass_map'), # live biomass map
-      leaflet::leafletOutput('deadbiomass_map')
+      leaflet::leafletOutput('deadbiomass_map'), # dead biomass map
+      leaflet::leafletOutput('treedensity_map'), # tree density map
+      leaflet::leafletOutput('vegtype_map')
     ),
     mainPanel(
       leaflet::leafletOutput('map', width = '100%'),  # add CA map
@@ -153,29 +155,75 @@ server <- function(input, output, session) {
                   title = "live biomass (kg/ha)")
       })
       
-     #  # Dead Biomass Map
-     #  # dead biomass raster for selected fire
-     #  deadbiomass_fire <- reactive({dead_biomassList[[click$id]]})
-     #   
-     #  # define legend inputs for live biomass maps
-     #  domainDB <- cellStats(deadbiomass_fire(), "range")
-     #  paletteDB <- colorNumeric("BrBG", domain = domainDB, na.color = "transparent")
-     # 
-     # 
-     #  output$deadbiomass_map <- renderLeaflet({
-     #  leaflet() %>% 
-     #    addTiles %>% 
-     #    addProviderTiles("Esri.WorldImagery") %>%
-     #    addRasterImage(deadbiomass_fire(), colors = paletteDB, opacity = 1) %>%
-     #    addLegend(position = "bottomleft",
-     #              pal = paletteDB,
-     #              values = domainDB, 
-     #              opacity = 0.7,
-     #              title = "dead biomass (kg/ha)")
-     #  })
-     # 
-     #  
-     #  
+      # Dead Biomass Map
+      # dead biomass raster for selected fire
+      deadbiomass_fire <- reactive({dead_biomassList[[click$id]]})
+
+      # define legend inputs for live biomass maps
+      domainDB <- cellStats(deadbiomass_fire(), "range")
+      paletteDB <- colorNumeric("YlOrBr", domain = domainDB, na.color = "transparent")
+
+
+      output$deadbiomass_map <- renderLeaflet({
+      leaflet() %>%
+        addTiles %>%
+        addProviderTiles("Esri.WorldImagery") %>%
+        addRasterImage(deadbiomass_fire(), colors = paletteDB, opacity = 1) %>%
+        addLegend(position = "bottomleft",
+                  pal = paletteDB,
+                  values = domainDB,
+                  opacity = 0.7,
+                  title = "dead biomass (kg/ha)")
+      })
+
+      # Tree Density Map
+      # tree density raster for selected fire
+      treedensity_fire <- reactive({tree_densityList[[click$id]]})
+
+      # define legend inputs for live biomass maps
+      domainTD <- cellStats(treedensity_fire(), "range")
+      #domainTD <- c(0, 11000)
+      paletteTD <- colorNumeric("RdPu", domain = domainTD, na.color = "transparent")
+
+
+      output$treedensity_map <- renderLeaflet({
+      leaflet() %>%
+      addTiles %>%
+      addProviderTiles("Esri.WorldImagery") %>%
+        addRasterImage(treedensity_fire(), colors = paletteTD, opacity = 1, maxBytes = Inf, project = FALSE) %>%
+        addLegend(position = "bottomleft",
+                  pal = paletteTD,
+                  values = domainTD,
+                  opacity = 0.7,
+                  title = "tree density (#/ha)")
+      })
+
+      # Veg Type Map
+      # veg type raster for selected fire
+      vegtype_fire <- reactive({veg_typeList[[click$id]]})
+
+      # define legend inputs for veg type maps
+      colorsVT = c("darkgreen", "deeppink", "darkorchid", "gold", "red", "orange", "cyan", "green")
+      levelsVT = c(1, 2, 3, 4, 5, 6, 7, 8)
+      labelsVT = c("conifer", "shrub", "herbaceous", "barren-other", "urban", "hardwood", "water", "agricultural")
+      paletteVT <- colorFactor(palette = colorsVT, levels = levelsVT, na.color = "transparent")
+      
+      output$vegtype_map <- renderLeaflet({
+      leaflet() %>%
+      addTiles %>%
+      addProviderTiles("Esri.WorldImagery") %>%
+        addRasterImage(vegtype_fire(), colors = paletteVT, opacity = 1, maxBytes = Inf, project = FALSE) %>%
+        addLegend(position = "bottomleft",
+                  pal = paletteVT,
+                  values = levelsVT,
+                  opacity = 0.7,
+                  title = "land cover type",
+                  labFormat = function(type, cuts, p) {
+                    paste0(labelsVT)
+                  }
+        )
+      })
+      
       # Summary Table
       # create table for average weather data for each fire
         output$table <- DT::renderDT({
@@ -185,7 +233,7 @@ server <- function(input, output, session) {
                           wind_speed, wind_max, month_humid, week_humid)
         })
 
-        })
+      })
  
   
 }
