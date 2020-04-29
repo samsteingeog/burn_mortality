@@ -176,15 +176,15 @@ server <- function(input, output, session) {
      # 
      #  
      #  
-     #  # Summary Table
-     #  # create table for average weather data for each fire
-     #  output$table <- DT::renderDT({
-     #    ave_data %>%
-     #      filter(FIREID == click$id) %>%
-     #      dplyr::select(month_temp, week_temp, month_precip, week_precip, 
-     #                    wind_speed, wind_max, month_humid, week_humid)
-     #  })
-     #  
+      # Summary Table
+      # create table for average weather data for each fire
+        output$table <- DT::renderDT({
+          ave_data %>%
+            filter(FIREID == click$id) %>%
+            dplyr::select(month_temp, week_temp, month_precip, week_precip,
+                          wind_speed, wind_max, month_humid, week_humid)
+        })
+
         })
  
   
