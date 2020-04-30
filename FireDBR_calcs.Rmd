@@ -36,4 +36,27 @@ names(rasterList) <- OBJECTID
 
 # join data in one data.frame
 dbr_data <- data.frame(OBJECTID, dbr_means)
+
+# recode dbr mean into severity class
+dbr_data <- dbr_data %>% 
+  mutate(mean_severity = case_when(
+    dbr_means >= -1000 & dbr_means <= -251 ~ 7,
+    dbr_means > -251 & dbr_means <= -101 ~ 6,
+    dbr_means > -101 & dbr_means <= 99 ~ 5,
+    dbr_means > 99 & dbr_means <= 269 ~ 4,
+    dbr_means > 269 & dbr_means <= 439 ~ 3, 
+    dbr_means > 439 & dbr_means <= 659 ~ 2,
+    dbr_means > 659 & dbr_means <= 2000 ~1)) %>%
+  
+  mutate(mean_severityClass = recode(mean_severity,
+                                     `7` = "Enhanced regrowth, high",
+                                     `6` = "Enhanced regrowth, low",
+                                     `5` = "Unburned",
+                                     `4` = "Low severity",
+                                     `3` = "Moderate to low severity",
+                                     `2` = "Moderate to high severity",
+                                     `1` = "High severity"))
+
+
+
 ```

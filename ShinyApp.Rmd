@@ -45,9 +45,32 @@ fires <- fires %>%
   mutate(centroids = st_centroid(geometry))
 fires_points <- fires$centroids
 fires_points <- st_transform(fires_points, 4326)
-x <- as.data.frame(st_coordinates(fires_points))
-x <- x %>% mutate(OBJECTID = as.character(fires$OBJECTID))
+fires_points <- as.data.frame(st_coordinates(fires_points))
+fires_points <- fires_points %>% mutate(OBJECTID = as.character(fires$OBJECTID))
+
+ave_data2 <- ave_data %>% 
+  mutate(OBJECTID = as.character(OBJECTID)) %>%
+  full_join(fires_points, by = 'OBJECTID') %>%
+  mutate(startdate = format(as.Date(ALARM_DATE), format = "%B %d")) %>%
+  mutate(enddate = format(as.Date(CONT_DATE), format = "%B %d")) %>%
+  filter(!is.na(DEM_MEAN)) %>%
+  filter(!is.na(dbr_means)) %>%
+  filter(!is.na(wind_speed)) %>%
+  filter(!is.na(wind_max)) %>%
+  distinct(OBJECTID, .keep_all = TRUE)
+
+
 ```
+
+# Make fire icon for leaflet map
+```{r}
+fireIcon <-makeIcon(
+  "./graphics/icons8-fire-48.png",
+  iconWidth = 28, iconHeight = 28
+)
+
+```
+
 
 # User Interface
 ```{r}
@@ -55,26 +78,31 @@ ui <- fluidPage (
   navbarPage("DS421 Project",
   #titlePanel("California Wildfires 2017"), #make better title later
   theme = shinythemes::shinytheme('simplex'),
-  tabPanel("About"),
-  
-      
+  tabPanel("About",
+     fluidRow(column(4, p("Summary of Fires"), plotOutput('piechart')))
+  ),
   tabPanel("Fire Data",
       # selectInput('results', 'Pick Results to See', choices = c('DBR', 'dead biomass', 'live biomass')),
-    sidebarPanel(
-      leaflet::leafletOutput('dbr_map'), # dbr map
-      leaflet::leafletOutput('livebiomass_map'), # live biomass map
-      leaflet::leafletOutput('deadbiomass_map'), # dead biomass map
-      leaflet::leafletOutput('treedensity_map'), # tree density map
-      leaflet::leafletOutput('vegtype_map')
+    fluidRow(
+      column(6, p("Burn Severity for Selected Fire"), leaflet::leafletOutput('dbr_map')),
+      column(6, p("California Wildfires in 2017"), leaflet::leafletOutput('map', width = '100%')) # add CA map
     ),
-    mainPanel(
-      leaflet::leafletOutput('map', width = '100%'),  # add CA map
-      DT::DTOutput(outputId = "table") # weather table
+    fluidRow(
+      column(3, p("Live biomass"), leaflet::leafletOutput('livebiomass_map')), # live biomass map
+      column(3, p("Dead biomass"), leaflet::leafletOutput('deadbiomass_map')), # dead biomass map
+      column(3, p("Tree density"), leaflet::leafletOutput('treedensity_map')), # tree density map
+      column(3, p("Land cover type"), leaflet::leafletOutput('vegtype_map'))
+    ),
+    fluidRow(
+      column(12, p("Weather parameters"), tableOutput(outputId = "table")) # weather table
     )
   ),
+    
+ 
   tabPanel("Model Results")
+  
   )
-  )
+)
 
 ```
 
@@ -89,10 +117,28 @@ server <- function(input, output, session) {
                      dragging = FALSE)) %>% 
       addTiles() %>% # Add default OpenStreetMap map tiles
       addProviderTiles("Esri.WorldImagery") %>%
-      addMarkers(data = x, lat = ~Y, lng = ~X, layerId = ~OBJECTID) 
+      addMarkers(lat = ave_data2$Y, lng = ave_data2$X, 
+                 layerId = ave_data2$OBJECTID, 
+                 icon = fireIcon,
+                 popup = paste(ave_data2$FIRE_NAME, "Fire", "<br>",
+                               "Dates:", ave_data2$startdate, "-", ave_data2$enddate, "<br>",
+                               "Fire Size:", round(ave_data2$GIS_ACRES), "acres", "<br>",
+                               "Average Burn Severity:", ave_data2$mean_severityClass))
       })
   
+  # pie chart output
+  output$piechart <- renderPlot({
+    ave_data2 %>%
+    count(mean_severityClass) %>% 
+    ggplot(aes(x = "", y = n, fill = mean_severityClass)) +
+    geom_bar(stat = "identity", width = 1) +
+    coord_polar("y", start = 0) +
+    theme_void() +
+    scale_fill_manual(values = c("darkgreen", "forestgreen", "limegreen", "yellow", "orange", "orangered", "purple")) +
+    theme(legend.title = element_blank()) +
+    labs(title = "Proportion of total fires by average burn severity")
 
+  })
   
   # show image
     # fire_chosen <- reactive({input$fires})
@@ -226,11 +272,28 @@ server <- function(input, output, session) {
       
       # Summary Table
       # create table for average weather data for each fire
-        output$table <- DT::renderDT({
-          ave_data %>%
+        output$table <- renderTable({
+          ave_data2 %>%
             filter(FIREID == click$id) %>%
-            dplyr::select(month_temp, week_temp, month_precip, week_precip,
-                          wind_speed, wind_max, month_humid, week_humid)
+            dplyr::select(month_temp, 
+                          week_temp, 
+                          month_precip, 
+                          week_precip,
+                          wind_speed, 
+                          wind_max, 
+                          month_humid, 
+                          week_humid) %>%
+            dplyr::rename(
+              "Prior month avg temp (F)" = month_temp, 
+              "Prior week mavg temp (F)" = week_temp, 
+              "Prior month avg precip (in)" = month_precip, 
+              "Prior week avg precip (in)" = week_precip, 
+              "Avg wind speed during (mph)" = wind_speed, 
+              "Avg max wind speed during (mph)" = wind_max, 
+              "Prior month avg humidity (%)" = month_humid, 
+              "Prior week avg humidity (%)" = week_humid)
+              
+          
         })
 
       })
