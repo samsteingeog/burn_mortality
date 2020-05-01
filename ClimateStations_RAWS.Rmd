@@ -247,6 +247,8 @@ all_weather <- full_join(month_temp, week_temp) %>%
 
 fires_weather <- full_join(fires_wstns, all_weather, by = "OBJECTID")
 
+#write_csv(fires_weather,  "./data/fires_weather.csv")
+
 #st_write(fires_weather, dsn = "./data/fire_data/fires_weather3.shp", layer = "fires_weather3.shp")
 
 ```
