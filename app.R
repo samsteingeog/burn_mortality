@@ -8,8 +8,8 @@ library(raster)
 
 
 ### Run these files first
-source("CroppingTifs.R") # gives us: fire_polygons, live_biomassList, dead_biomassList, veg_typeList, and tree_densityList
 source("regression_model3.R") # gives us dataframes: fires_weather, ave_data, dbr_data
+source("CroppingTifs.R") # gives us: fire_polygons, live_biomassList, dead_biomassList, veg_typeList, and tree_densityList
 
 # Run these files to get data frames
 # Maybe we should turn them into .R files instead?
