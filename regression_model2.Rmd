@@ -24,11 +24,11 @@ library(rminer)
 ```{r}
 # Run these files to get data frames
 # Maybe we should turn them into .R files instead?
-#rmarkdown::render('./ClimateStations_RAWS.Rmd') # gives us weather dataframe ("fires_weather")
-#rmarkdown::render('./FireDBR_calcs.Rmd') # gives us dbr dataframe ("dbr_data")
+rmarkdown::render('./ClimateStations_RAWS.Rmd') # gives us weather dataframe ("fires_weather")
+rmarkdown::render('./FireDBR_calcs.Rmd') # gives us dbr dataframe ("dbr_data")
 
-fires_weather <- read_csv("./data/fires_weather.csv")
-dbr_data <- read_csv("./data/dbr_data.csv")
+# fires_weather <- read_csv("./data/fires_weather.csv")
+# dbr_data <- read_csv("./data/dbr_data.csv")
 
 
 ```

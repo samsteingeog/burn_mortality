@@ -8,7 +8,7 @@ library(raster)
 
 
 ### Run these files first
-source("CroppingTifs.R") # gives us: live_biomassList, dead_biomassList, veg_typeList, and tree_densityList
+source("CroppingTifs.R") # gives us: fire_polygons, live_biomassList, dead_biomassList, veg_typeList, and tree_densityList
 source("regression_model3.R") # gives us dataframes: fires_weather, ave_data, dbr_data
 
 # Run these files to get data frames
@@ -18,33 +18,42 @@ source("regression_model3.R") # gives us dataframes: fires_weather, ave_data, db
 #rmarkdown::render('./Cropping_biomass&vegtype&treedens.Rmd') # gives us list of dead & live biomass rasters ("live_biomassList" & "dead_biomassList") and vegtype rasters ("veg_typeList"), and tree density rasters ("tree_densityList")
 #rmarkdown::render('./regression_model2.Rmd') # gives us dataframes: fires_weather, ave_data, dbr_data
 
-# name rasters by ObjectID
-names(rasterList) <- OBJECTID 
-
-#average_data <- read_csv("data/ave_export_sum.csv") # gives average data
-
-
 
 # data prep
+# download all dbr tif files 
+path = 'data/BurnSev_110Fires/'
+list_files <- list.files(path, pattern = '.tif')
 
-# # get centroid of fires
-# fires <- fires %>%
-#   mutate(centroids = st_centroid(geometry))
-# fires_points <- fires$centroids
-# fires_points <- st_transform(fires_points, 4326)
-# fires_points <- as.data.frame(st_coordinates(fires_points))
-# fires_points <- fires_points %>% mutate(OBJECTID = as.character(fires$OBJECTID))
-# 
-# ave_data2 <- ave_data %>% 
-#   mutate(OBJECTID = as.character(OBJECTID)) %>%
-#   full_join(fires_points, by = 'OBJECTID') %>%
-#   mutate(startdate = format(as.Date(ALARM_DATE), format = "%B %d")) %>%
-#   mutate(enddate = format(as.Date(CONT_DATE), format = "%B %d")) %>%
-#   filter(!is.na(DEM_MEAN)) %>%
-#   filter(!is.na(dbr_means)) %>%
-#   filter(!is.na(wind_speed)) %>%
-#   filter(!is.na(wind_max)) %>%
-#   distinct(OBJECTID, .keep_all = TRUE)
+# create raster for each .tif file
+rasterList <- list()
+for (i in 1:length(list_files)) {
+  rasterList[[i]] <- raster(paste0(path, list_files[i]))
+}
+
+# get objectIDs
+OBJECTID <- as.numeric(substr(list_files, 1, 5))
+
+# name rasters
+names(rasterList) <- OBJECTID
+
+# get centroid of fires
+fires <- fire_polygons %>%
+  mutate(centroids = st_centroid(geometry))
+fires_points <- fires$centroids
+fires_points <- st_transform(fires_points, 4326)
+fires_points <- as.data.frame(st_coordinates(fires_points))
+fires_points <- fires_points %>% mutate(OBJECTID = as.character(fires$OBJECTID))
+
+ave_data2 <- ave_data %>%
+  mutate(OBJECTID = as.character(OBJECTID)) %>%
+  full_join(fires_points, by = 'OBJECTID') %>%
+  mutate(startdate = format(as.Date(ALARM_DATE), format = "%B %d")) %>%
+  mutate(enddate = format(as.Date(CONT_DATE), format = "%B %d")) %>%
+  filter(!is.na(DEM_MEAN)) %>%
+  filter(!is.na(dbr_means)) %>%
+  filter(!is.na(wind_speed)) %>%
+  filter(!is.na(wind_max)) %>%
+  distinct(OBJECTID, .keep_all = TRUE)
 
 
 # Make fire icon for leaflet map

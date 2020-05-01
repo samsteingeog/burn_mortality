@@ -58,5 +58,5 @@ dbr_data <- dbr_data %>%
                                      `1` = "High severity"))
 
 
-#write_csv(fires_weather,  "./data/dbr_data.csv")
+#write_csv(dbr_data,  "./data/dbr_data.csv")
 ```
