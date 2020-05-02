@@ -8,15 +8,15 @@ library(raster)
 
 
 ### Run these files first
-source("regression_model3.R") # gives us dataframes: fires_weather, ave_data, dbr_data
-source("CroppingTifs.R") # gives us: fire_polygons, live_biomassList, dead_biomassList, veg_typeList, and tree_densityList
+source("regression_model3.R", local = TRUE) # gives us dataframes: fires_weather, ave_data, dbr_data
+source("CroppingTifs.R", local = TRUE) # gives us: fire_polygons, live_biomassList, dead_biomassList, veg_typeList, and tree_densityList
 
 # Run these files to get data frames
 # Maybe we should turn them into .R files instead?
 # rmarkdown::render('./ClimateStations_RAWS.Rmd') # gives us weather dataframe ("fires_weather")
 # rmarkdown::render('./FireDBR_calcs.Rmd') # gives us dbr dataframe ("dbr_data")
-#rmarkdown::render('./Cropping_biomass&vegtype&treedens.Rmd') # gives us list of dead & live biomass rasters ("live_biomassList" & "dead_biomassList") and vegtype rasters ("veg_typeList"), and tree density rasters ("tree_densityList")
-#rmarkdown::render('./regression_model2.Rmd') # gives us dataframes: fires_weather, ave_data, dbr_data
+# rmarkdown::render('./Cropping_biomass&vegtype&treedens.Rmd') # gives us list of dead & live biomass rasters ("live_biomassList" & "dead_biomassList") and vegtype rasters ("veg_typeList"), and tree density rasters ("tree_densityList")
+# rmarkdown::render('./regression_model2.Rmd') # gives us dataframes: fires_weather, ave_data, dbr_data
 
 
 # data prep
