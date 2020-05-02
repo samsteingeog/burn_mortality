@@ -9,22 +9,14 @@ library(raster)
 
 ### Run these files first
 source("regression_model3.R", local = TRUE) # gives us dataframes: fires_weather, ave_data, dbr_data
-source("CroppingTifs.R", local = TRUE) # gives us: fire_polygons, live_biomassList, dead_biomassList, veg_typeList, and tree_densityList
 
-# Run these files to get data frames
-# Maybe we should turn them into .R files instead?
-# rmarkdown::render('./ClimateStations_RAWS.Rmd') # gives us weather dataframe ("fires_weather")
-# rmarkdown::render('./FireDBR_calcs.Rmd') # gives us dbr dataframe ("dbr_data")
-# rmarkdown::render('./Cropping_biomass&vegtype&treedens.Rmd') # gives us list of dead & live biomass rasters ("live_biomassList" & "dead_biomassList") and vegtype rasters ("veg_typeList"), and tree density rasters ("tree_densityList")
-# rmarkdown::render('./regression_model2.Rmd') # gives us dataframes: fires_weather, ave_data, dbr_data
-
-
-# data prep
-# download all dbr tif files 
+#--------------------------------------------------------
+# DATA PREP
+# DBR data: download all dbr tif files 
 path = 'data/BurnSev_110Fires/'
 list_files <- list.files(path, pattern = '.tif')
 
-# create raster for each .tif file
+# create DBR raster for each .tif file
 rasterList <- list()
 for (i in 1:length(list_files)) {
   rasterList[[i]] <- raster(paste0(path, list_files[i]))
@@ -36,13 +28,86 @@ OBJECTID <- as.numeric(substr(list_files, 1, 5))
 # name rasters
 names(rasterList) <- OBJECTID
 
+#~~~~~~
+# Dead Biomass data: download all tif files 
+path = 'data/DeadBiomassTifs/'
+list_files <- list.files(path, pattern = '.tif')
+
+# create DBR raster for each .tif file
+dead_biomassList <- list()
+for (i in 1:length(list_files)) {
+  dead_biomassList[[i]] <- raster(paste0(path, list_files[i]))
+}
+
+# get objectIDs
+OBJECTID <- as.numeric(substr(list_files, 1, 5))
+
+# name rasters
+names(dead_biomassList) <- OBJECTID
+
+#~~~~~~
+# Live Biomass data: download all tif files 
+path = 'data/LivingBiomassTifs/'
+list_files <- list.files(path, pattern = '.tif')
+
+# create DBR raster for each .tif file
+live_biomassList <- list()
+for (i in 1:length(list_files)) {
+  live_biomassList[[i]] <- raster(paste0(path, list_files[i]))
+}
+
+# get objectIDs
+OBJECTID <- as.numeric(substr(list_files, 1, 5))
+
+# name rasters
+names(live_biomassList) <- OBJECTID
+
+#~~~~~~
+# Tree Dens data: download all tif files 
+path = 'data/TreeDensTifs/'
+list_files <- list.files(path, pattern = '.tif')
+
+# create DBR raster for each .tif file
+tree_densityList <- list()
+for (i in 1:length(list_files)) {
+  tree_densityList[[i]] <- raster(paste0(path, list_files[i]))
+}
+
+# get objectIDs
+OBJECTID <- as.numeric(substr(list_files, 1, 5))
+
+# name rasters
+names(tree_densityList) <- OBJECTID
+
+#~~~~~~
+# Veg Type data: download all tif files 
+path = 'data/VegTypeTifs/'
+list_files <- list.files(path, pattern = '.tif')
+
+# create DBR raster for each .tif file
+veg_typeList <- list()
+for (i in 1:length(list_files)) {
+  veg_typeList[[i]] <- raster(paste0(path, list_files[i]))
+}
+
+# get objectIDs
+OBJECTID <- as.numeric(substr(list_files, 1, 5))
+
+# name rasters
+names(veg_typeList) <- OBJECTID
+
 # get centroid of fires
-fires <- fire_polygons %>%
-  mutate(centroids = st_centroid(geometry))
-fires_points <- fires$centroids
-fires_points <- st_transform(fires_points, 4326)
-fires_points <- as.data.frame(st_coordinates(fires_points))
-fires_points <- fires_points %>% mutate(OBJECTID = as.character(fires$OBJECTID))
+# fires <- fire_polygons %>%
+#   mutate(centroids = st_centroid(geometry))
+# fires_points <- fires$centroids
+# fires_points <- st_transform(fires_points, 4326)
+# fires_points <- as.data.frame(st_coordinates(fires_points))
+# fires_points <- fires_points %>% mutate(OBJECTID = as.character(fires$OBJECTID))
+
+# read in centroids of fires, and lat&long
+fires_points <- read_csv("data/fires_points.csv")
+fires_points <- fires_points %>%
+  mutate(OBJECTID = as.character(OBJECTID))
 
 ave_data2 <- ave_data %>%
   mutate(OBJECTID = as.character(OBJECTID)) %>%
@@ -63,7 +128,7 @@ fireIcon <-makeIcon(
   iconWidth = 28, iconHeight = 28
 )
 
-
+#--------------------------------------------------------
 # User Interface
 
 ui <- fluidPage (
@@ -114,7 +179,7 @@ ui <- fluidPage (
 )
 
 
-
+#--------------------------------------------------------
 # Server
 
 server <- function(input, output, session) {
@@ -394,7 +459,7 @@ server <- function(input, output, session) {
 
 
 
-
+#--------------------------------------------------------
 # Run Shiny
 
 shinyApp(ui = ui, server = server)

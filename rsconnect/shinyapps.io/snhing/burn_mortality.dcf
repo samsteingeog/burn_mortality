@@ -1,0 +1,10 @@
+name: burn_mortality
+title:
+username:
+account: snhing
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 2230650
+bundleId: 3094604
+url: https://snhing.shinyapps.io/burn_mortality/
+when: 1588450395.63627
