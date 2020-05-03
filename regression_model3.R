@@ -167,60 +167,24 @@ control <- trainControl(method = "repeatedcv", number = 10, selectionFunction = 
 
 ## Random Forest 
 
-#r RF all
-
 #setting up random forest
+set.seed(1) #set seed for reproducability
 
 all_forest = randomForest(x = all_ind, y = all_dbr, ntree = 300, mtry = 5) #documentation recs using 1/3 # of ind variables for mtry
+#tried with various ntree and mtry values and got nearly identical results
 
-
-all_forest$importance
-#slope/aspect/living bio most important; precip values were least
-
+#Extract predicted values
 all_df$rf_dbr <- all_forest$predicted
-
 
 ## Support Vector Machine
 
-#r SVM ave
-#Set up Support Vector Machine in 3 methods w/ 3 different results
-#broadly best fit but I'm worried about how overfit the models are
+#Set up Support Vector Machines
+set.seed(1) #set seed for reproducibility 
 
-ave_svm <- train(ave_ind, ave_dbr, method = "svmLinear2", trControl = control) #using same cv settings as before w/ stepwise
-ave_svm_alt <- train(ave_ind_alt, ave_dbr, method = "svmLinear2", trControl = control) 
+## Method 1 - caret packaged
+ave_svm1 <- train(ave_ind, ave_dbr, method = "svmLinear", trControl = control) #using same cv settings as before w/ stepwise
 
-ave_df$svm_dbr <- predict(ave_svm, newx = ave_df)
-ave_df$svm_dbr_alt <- predict(ave_svm_alt, newx = ave_df)
-
-#check residuals
-sum(abs(ave_df$svm_dbr-ave_df$dbr_means)) #8492 w/ wind max, 8038 w/ veg
-sum(abs(ave_df$svm_dbr_alt-ave_df$dbr_means)) #8469 w/ wind max, 8350 w/ veg
-
-#Testing a different SVM method
-
-ave_svm_1 <- svm(x = ave_ind, y = ave_dbr)
-ave_svm_alt_1 <- svm(x = ave_ind_alt, y = ave_dbr)
-
-ave_df$svm_dbr1 <- predict(ave_svm_1, newx = ave_df)
-ave_df$svm_dbr1_alt <- predict(ave_svm_alt_1, newx = ave_df)
-
-sum(abs(ave_svm_1$residuals)) #Check residuals; best for all models so far 6188 w/out wind; 5998 w/ wind, 6175 w/ veg
-sum(abs(ave_svm_alt_1$residuals)) #Check residuals; best for all models so far, 5888 w/ wind, 6302 w/ veg
-
-#Trying one more way to try to extract importance
-M <- fit(ave_dbr~., data=ave_ind, model="svm", kpar=list(sigma=0.10), C=2)
-svm.imp <- Importance(M, data=ave_ind)
-#svm.imp$imp
-
-M_alt <- fit(ave_dbr~., data=ave_ind_alt, model="svm", kpar=list(sigma=0.10), C=2)
-svm_imp_alt <- Importance(M_alt, data=ave_ind_alt)
-#svm_imp_alt$imp
-
-ave_df$svm_m_dbr <- predict(M, newdata = ave_ind)
-ave_df$svm_m_dbr_alt <- predict(M_alt, newdata = ave_ind_alt)
-
-
-
-
+#predict new data
+ave_df$svm_dbr1 <- predict(ave_svm1, newx = ave_df)
 
 

@@ -21,25 +21,28 @@ library(rminer)
 ```
 
 ### Run these files first
-```{r}
+```{r render needed files}
 # Run these files to get data frames
-# Maybe we should turn them into .R files instead?
+
 rmarkdown::render('./ClimateStations_RAWS.Rmd') # gives us weather dataframe ("fires_weather")
 rmarkdown::render('./FireDBR_calcs.Rmd') # gives us dbr dataframe ("dbr_data")
-
-# fires_weather <- read_csv("./data/fires_weather.csv")
-# dbr_data <- read_csv("./data/dbr_data.csv")
-
 
 ```
 
 ## Join data sources
-```{r read data}
+
+These models are trained on two data sets: 
+ * "all" data set: 100 randomly selected sample points in each of the ~100 fires (~10k observations total)
+ * "ave" data set: values taken across each of the ~100 fires (~100 observations total)
+ 
+In the "all" data set, weather and fire characteristic varaibles are constant across all 100 sample points, leading to issues with model fit. The "ave" data set was created to avoid this issue. 
+
+```{r read in other data}
 # read in average data csv file
 # gives us elevation, slope, aspect averages for whole fire
 average_data <- read_csv("data/avg_std.csv")
 
-#import Yiyi's file with data from 10k sample points
+#import file with data from 10k sample points
 sample_pts <- read_csv("data/sample_pts")
 
 #clean up date values
@@ -48,39 +51,39 @@ sample_pts$CONT_DATE <- ymd_hms(sample_pts$CONT_DATE)
 sample_pts$fireduration <- interval(sample_pts$ALARM_DATE, sample_pts$CONT_DATE) %>% #coerce duration dates into time values
   as.duration()
 
-#adding in summed biomass values (summed across fires)
-sumDB <- read_csv("data/SumDB.txt") %>%
+#adding in biomass and vegetation variables 
+sumDB <- read_csv("data/SumDB.txt") %>% #Dead Biomass (sum across fire - kg/ha)
   dplyr::select(-OBJECTID) %>%
   rename("OBJECTID" = "FIREID")
 
-sumLB <- read_csv("data/SumLB.txt") %>%
+sumLB <- read_csv("data/SumLB.txt") %>% #live biomass (sum across fire - kg/ha)
   dplyr::select(-OBJECTID) %>%
   rename("OBJECTID" = "FIREID")
 
-meanTD <- read_csv("data/MeanTD.txt") %>%
+meanTD <- read_csv("data/MeanTD.txt") %>% #tree density (mean- #trees/ha)
   dplyr::select(-OBJECTID) %>%
   rename("OBJECTID" = "FIREID")
 
-VegCover <- read_csv("data/VegTypeSum.txt") %>%
+VegCover <- read_csv("data/VegTypeSum.txt") %>% #land cover (sum across fire - m^2 of each type)
   dplyr::select(-OBJECTID) %>%
   rename("OBJECTID" = "FIREID", "conifer" = "VALUE_1", "shrub" = "VALUE_2", "herbaceous" = "VALUE_3", "barren_other" = "VALUE_4", 
          "urban" = "VALUE_5", "hardwood" = "VALUE_6", "water" = "VALUE_7", "agricultural" = "VALUE_8")
 
 ```
 
-```{r all data tables}
+```{r create df of "all" data}
 
 all_data <- full_join(sample_pts, fires_weather, by = "OBJECTID") %>%
   dplyr::select(-ALARM_DATE.y, -CONT_DATE.y, -Shape_Leng.y, -YEAR_, -STATE) #drop extraneous variables
 
-# make exportable version
+# drop geometry values to avoid bugs later
  all_dat <- all_data %>%
    dplyr::select(-geometry)
 
+#Export
 # write.csv(all_df, file = "all_data.csv")
 
-#drop missing values for DEM and derived data
-#drop values without info on dbr
+#drop missing values
 all_dat <- all_dat %>%  
   filter(!(dem == -9999)) %>%
   filter(!(dbr == 0)) %>%
@@ -97,7 +100,7 @@ all_dat <- data.frame(all_dat)
 
 ```
 
-```{r ave data tables}
+```{r create df of "ave" data}
 # join all the datasets (averages, weather, dbr, biomass, landcover type)
 ave_data <- full_join(average_data, fires_weather, by = "OBJECTID") %>%
   full_join(dbr_data, by = "OBJECTID") %>%
@@ -112,10 +115,12 @@ ave_data <- full_join(average_data, fires_weather, by = "OBJECTID") %>%
   dplyr::select(-COUNT, -AREA) %>%
   rename("TreeDens" = "MEAN") %>%
   left_join(VegCover, by = "OBJECTID")
-# make exportable version
- ave_df <- ave_data %>%
-   dplyr::select(-geometry)
 
+# drop geometry values to avoid bugs later
+ ave_df <- ave_data %>%
+   dplyr::select(-geometry) 
+
+#Export
 # write.csv(all_df, file = "all_data.csv")
 
 #drop missing values for DEM and derived data
@@ -140,36 +145,37 @@ ave_df <- ave_df %>%
 
 ## Data splitting
 
+Randomly assign data to train and test pools using 75-25 split. 
+
 ```{r data splitting all}
 
 # Test/Train split(s)
- # set.seed(1)
- # 
- # data_split = sample.split(all_df, SplitRatio = 0.75) #setting up testing and training split
- # train <- subset(all_df, data_split == TRUE)
- # test <-subset(all_df, data_split == FALSE)
+ set.seed(1)
+
+ data_split = sample.split(all_df, SplitRatio = 0.75) #setting up testing and training split
+ train <- subset(all_df, data_split == TRUE)
+ test <-subset(all_df, data_split == FALSE)
 
 #seperating into ind and dep variables for later 
  
 all_dbr <- all_dat$dbr #just dependent variables
-# test_dbr <- test$dbr
-# train_dbr <- train$dbr
+test_dbr <- test$dbr
+train_dbr <- train$dbr
 
 all_ind <- all_dat %>% #just independent variables
   dplyr::select(slope, aspect, dem, LivingBio, DeadBio, fireduration, GIS_ACRES, 
           month_temp, week_temp, month_precip, week_precip, wind_speed, wind_max, month_humid, week_humid) 
-# test_ind <- test %>% #just independent variables
-#   dplyr::select(slope, aspect, dem, LivingBio, DeadBio, fireduration, GIS_ACRES, 
-#           month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid)
-# train_ind <- train %>% #just independent variables
-#   dplyr::select(slope, aspect, dem, LivingBio, DeadBio, fireduration, GIS_ACRES, 
-#           month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid)
+test_ind <- test %>% #just independent variables
+  dplyr::select(slope, aspect, dem, LivingBio, DeadBio, fireduration, GIS_ACRES,
+          month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid)
+train_ind <- train %>% #just independent variables
+  dplyr::select(slope, aspect, dem, LivingBio, DeadBio, fireduration, GIS_ACRES,
+          month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid)
  
 all_df <- cbind(all_dbr, all_ind) %>% #had to create a data table with no NAs for later functions
   rename("dbr" = "all_dbr")
 
 all_df <- na.omit(all_df)
-
 
 #re do data frames now that observations with missing data in relevant fields has been removed
 
@@ -179,10 +185,9 @@ all_ind <- all_dat %>% #just independent variables
 
 all_dbr <- all_dat$dbr #just dependent variables
 
+#Uncomment and run following lines to export
 # all_export <- cbind(all_dat$OBJECTID, all_ind, all_dbr)
-# 
 # write.csv(all_export, file = "data/all_export.csv")
- 
 
 ```
 
@@ -190,41 +195,43 @@ all_dbr <- all_dat$dbr #just dependent variables
 ```{r data splitting ave}
 
 # Test/Train split(s)
- # set.seed(1)
- # 
- # data_split = sample.split(ave_df, SplitRatio = 0.75) #setting up testing and training split
- # train
- # ave_train<- subset(ave_df, data_split == TRUE)
- # ave_test <-subset(ave_df, data_split == FALSE)
+ set.seed(1234)
+
+ data_split = sample.split(ave_df, SplitRatio = 0.75) #setting up testing and training split
+ train
+ ave_train<- subset(ave_df, data_split == TRUE)
+ ave_test <-subset(ave_df, data_split == FALSE)
 
 #seperating into ind and dep variables for later 
  
 ave_df_og <- ave_df
 
 ave_dbr <- ave_df$dbr_means #just dependent variables
-# ave_te_dbr <- ave_test$dbr_means
-# ave_tr_dbr <- ave_train$dbr_means
-#summ_dbr <- summ_df$dbr_means
+ave_te_dbr <- ave_test$dbr_means
+ave_tr_dbr <- ave_train$dbr_means
 
-ave_ind <- ave_df %>% #just independent variables
+ave_ind <- ave_df %>% #just independent variables (using mean biomass)
   dplyr::select(slope_MEAN, aspect_MEAN, DEM_MEAN, LiveBio_MEAN, DeadBio_MEAN, TreeDens, fireduration, GIS_ACRES, 
           month_temp, week_temp, month_precip, week_precip, wind_speed, wind_max,  month_humid, week_humid, 
           conifer, shrub, herbaceous, barren_other, urban, hardwood, water, agricultural)
 
-ave_ind_alt <- ave_df %>% #trying out summed biomass values (instead of mean)
+ave_ind_alt <- ave_df %>% #Just independent variables (using summed biomass)
   dplyr::select(slope_MEAN, aspect_MEAN, DEM_MEAN, LiveBio_SUM, DeadBio_SUM, TreeDens, fireduration, GIS_ACRES, 
           month_temp, week_temp, month_precip, week_precip, wind_speed, wind_max, month_humid, week_humid, 
           conifer, shrub, herbaceous, barren_other, urban, hardwood, water, agricultural)
 
-# ave_te_ind <- ave_test %>% #just independent variables
-#   dplyr::select(slope_MEAN, aspect_MEAN, DEM_MEAN, LiveBio_MEAN, DeadBio_MEAN, fireduration, GIS_ACRES, 
-#           month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid)
-# ave_tr_ind <- ave_train %>% #just independent variables
-#   dplyr::select(slope_MEAN, aspect_MEAN, DEM_MEAN, LiveBio_MEAN, DeadBio_MEAN, fireduration, GIS_ACRES, 
-#           month_temp, week_temp, month_precip, week_precip, wind_speed, month_humid, week_humid)
-# 
+ave_te_ind <- ave_test %>% #just independent variables (test)
+  dplyr::select(slope_MEAN, aspect_MEAN, DEM_MEAN, LiveBio_MEAN, DeadBio_MEAN, TreeDens, fireduration, GIS_ACRES, 
+          month_temp, week_temp, month_precip, week_precip, wind_speed, wind_max,  month_humid, week_humid, 
+          conifer, shrub, herbaceous, barren_other, urban, hardwood, water, agricultural)
+
+ave_tr_ind <- ave_train %>% #just independent variables (train)
+  dplyr::select(slope_MEAN, aspect_MEAN, DEM_MEAN, LiveBio_MEAN, DeadBio_MEAN, TreeDens, fireduration, GIS_ACRES, 
+          month_temp, week_temp, month_precip, week_precip, wind_speed, wind_max,  month_humid, week_humid, 
+          conifer, shrub, herbaceous, barren_other, urban, hardwood, water, agricultural)
+
+#Uncomment and run following lines to export
 # ave_export_sum <- cbind(ave_df$OBJECTID, ave_ind_alt, ave_dbr)
-# 
 # write.csv(ave_export_sum, file = "data/ave_export_sum.csv")
  
 ```
@@ -233,16 +240,14 @@ ave_ind_alt <- ave_df %>% #trying out summed biomass values (instead of mean)
 
 ```{r OLS all}
 
-#create the model (using all data for now)
-#current model doesn't include precip/temp/humid during the fire or solar radiation data
+#create the model the model using all data
 all_ols <- lm(dbr ~ slope + aspect + dem + LivingBio + DeadBio + fireduration + GIS_ACRES + 
           month_temp + week_temp + month_precip + week_precip + wind_speed + wind_max + month_humid + week_humid, 
           data = all_df)
 
 #check residuals 
 sum(abs(all_ols$residuals)) 
-#1347610 w/out max wind
-#1334108 w/ max wind
+#1334108 on 5/2/2020
 
 #Check fit 
 all_df$pred_dbr <- predict(all_ols, newdata = all_df)
@@ -252,40 +257,44 @@ ggplot(all_df) +
   geom_abline(slope = 1) +
   xlim(0,1000) +
   ylim(0,1000) +
-  theme_minimal()
+  theme_minimal() +
+  ggtitle("OLS All Data") +
+  xlab("dBR") + 
+  ylab("Predicted dBR")
 
-#Fit is pretty bad so far (tendancy to dramatically underestimate dbr)
+#Poor predictive performance
 
 ```
 
 ```{r OLS ave}
 
-#create the model (using all data for now)
-#current model doesn't include precip/temp/humid during the fire or solar radiation data
+#create the model using ave data
+
 ave_ols1 <- lm(dbr_means ~ slope_MEAN + aspect_MEAN + DEM_MEAN + LiveBio_MEAN + DeadBio_MEAN + TreeDens + fireduration + GIS_ACRES + 
           month_temp + week_temp + month_precip + week_precip + wind_speed + wind_max + month_humid + week_humid +
           conifer + shrub + herbaceous + barren_other + urban + hardwood + water + agricultural, 
-          data = ave_df_og)
+          data = ave_df_og) #This uses mean biomass
 
 ave_ols2 <- lm(dbr_means ~ slope_MEAN + aspect_MEAN + DEM_MEAN + LiveBio_SUM + DeadBio_SUM + TreeDens + fireduration + GIS_ACRES + 
           month_temp + week_temp + month_precip + week_precip + wind_speed + wind_max + month_humid + week_humid +
           conifer + shrub + herbaceous + barren_other + urban + hardwood + water + agricultural,
-          data = ave_df_og)
-
-#summary(ols)
+          data = ave_df_og) #This uses summed biomass
 
 #Check fit 
-ave_df$pred_dbr1 <- predict(ave_ols1, newdata = ave_df)
-ave_df$pred_dbr2 <- predict(ave_ols2, newdata = ave_df)
+ave_df$pred_dbr1 <- predict(ave_ols1, newdata = ave_df) #mean biomass
+ave_df$pred_dbr2 <- predict(ave_ols2, newdata = ave_df) #sum biomass
 
 ggplot(ave_df) +
   geom_point(aes(x = dbr_means, y = pred_dbr1), alpha = 0.4) +
   geom_abline(slope = 1) +
   xlim(0,1000) +
   ylim(0,1000) +
-  theme_minimal()
+  theme_minimal() +
+  ggtitle("OLS Average Data (Biomass_Mean)") +
+  xlab("Mean dBR") + 
+  ylab("Predicted Mean dBR")
 
-png(filename = "graphics/olsAve.png")
+#png(filename = "graphics/olsAve.png")
 
 ggplot(ave_df) +
   geom_point(aes(x = dbr_means, y = pred_dbr2), alpha = 0.4) +
@@ -297,100 +306,57 @@ ggplot(ave_df) +
   xlab("Mean dBR") + 
   ylab("Predicted Mean dBR")
 
-dev.off()
-#Fit is getting better!
+#dev.off()
 
 #sum of the residuals for each
-sum(abs(ave_ols1$residuals)) #9057 w/out max wind; 8659 w/ max wind, 8546 w/ veg cover
-sum(abs(ave_ols2$residuals)) #8980 w/out max wind; 8633 w/ max wind, 8750 w/ veg cover
+sum(abs(ave_ols1$residuals)) #8546 on 5/2/2020
+sum(abs(ave_ols2$residuals)) #8750 on 5/2/2020
 
 ```
 
 ### Use stepwise approach to OLS
 
 ```{r OLS stepwise all}
-#This suddenly stopped working for no apparent reason?? the best model fit for all data points came from RF anyways, so I'm commenting the failing models out
+#trying a stepwise function to select only most relevant variables based on AIC
+ #Input is the linear model (w/ all parameters) derived above 
+ #k - degrees of freedom for penalty (2 for true AIC); direction - both (try adding and substracting terms)
 
-#trying a stepwise function to select only most relevant variables
+ all_AIC <- stepAIC(all_ols, direction = "both", k = 2)
 
-# control <- trainControl(method = "repeatedcv", number = 10) #this controls the settings for the model selection (10-fold cross validation currently)
+# Check with variables were retained in the model
+ summary(all_AIC) # Dropped fire duration and month precip; week precip also have poor significance values
+ 
+ all_df$aic_dbr <- predict(all_AIC, newdata = all_df) #predict using pared down model
+ 
+ ggplot(all_df) + #doesn't seem to make much difference
+   geom_point(aes(x = dbr, y = aic_dbr), alpha = 0.4) +
+   geom_abline(slope = 1) +
+   xlim(0,1000) +
+   ylim(0,1000) +
+   theme_minimal() +
+   ggtitle("OLS Stepwise All Data") +
+   xlab("dBR") + 
+   ylab("Predicted dBR")
 
-# all_ind1 <- data.frame(all_ind)
-# all_dbr1 <- as.numeric(matrix(all_dbr))
-# 
-# all_step <- train(x = all_ind1, 
-#                   y = all_dbr1, 
-#                   form = all_ols, 
-#                   #data = all_df,
-#                   method = "leapSeq", #stepwise version of function
-#                   tuneGrid = data.frame(nvmax = 1:14),
-#                   trControl = control) #using settings from above
-# 
-# #summary(all_step)
-# 
-# all_df$step_dbr <- predict(all_step, newdata = all_df) #predict using pared down model
-# 
-# ggplot(all_df) + #doesn't seem to make much difference
-#   geom_point(aes(x = dbr, y = step_dbr), alpha = 0.4) +
-#   geom_abline(slope = 1) +
-#   xlim(0,1000) +
-#   ylim(0,1000) +
-#   theme_minimal()
-# 
-# #Using a stepwise model selector based on AIC 
-# #Input is the linear model (w/ all parameters) derived above 
-# #k - degrees of freedom for penalty (2 for true AIC); direction - both (try adding and substracting terms)
-# all_AIC <- stepAIC(all_ols, direction = "both", k = 2)
-# 
-# #extractAIC(all_AIC) 
-# #summary(all_AIC)
-# 
-# all_df$aic_dbr <- predict(all_AIC, newdata = all_df) #predict using pared down model
-# 
-# ggplot(all_df) + #doesn't seem to make much difference
-#   geom_point(aes(x = dbr, y = aic_dbr), alpha = 0.4) +
-#   geom_abline(slope = 1) +
-#   xlim(0,1000) +
-#   ylim(0,1000) +
-#   theme_minimal()
-
-#fits are trash
-
+# overall still has poor predictive capabilities and model is fit is poor
+ 
 ```
 
 ```{r OLS stepwise ave}
-#trying a stepwise function to select only most relevant variables
+#trying a stepwise function to select only most relevant variables based on AIC
 
-control <- trainControl(method = "repeatedcv", number = 10, selectionFunction = "best") #this controls the settings for the model selection (10-fold cross validation currently)
-
-ave_step <- train(x = ave_ind, 
-                  y = ave_dbr, 
-                  form = ave_ols1, 
-                  #data = ave_df_og,
-                  method = "leapSeq", #stepwise version of function
-                  tuneGrid = data.frame(nvmax = 1:15),
-                  trControl = control) #using settings from above
-
-#summary(all_step)
-
-ave_df$step_dbr <- predict(ave_step, newdata = ave_df) #predict using pared down model
-
-ggplot(ave_df) + #doesn't seem to make much difference
-  geom_point(aes(x = dbr_means, y = step_dbr), alpha = 0.4) +
-  geom_abline(slope = 1) +
-  xlim(0,1000) +
-  ylim(0,1000) +
-  theme_minimal()
-
-#Using a stepwise model selector based on AIC 
 #Input is the linear model (w/ all parameters) derived above 
 #k - degrees of freedom for penalty (2 for true AIC); direction - both (try adding and substracting terms)
-ave_AIC1 <- stepAIC(ave_ols1, direction = "both", k = 2)
-ave_AIC2 <- stepAIC(ave_ols2, direction = "both", k = 2)
+ave_AIC1 <- stepAIC(ave_ols1, direction = "both", k = 2) #biomass mean
+ave_AIC2 <- stepAIC(ave_ols2, direction = "both", k = 2) #biomass sum
 
+#check with variables were retained in the model
+ summary(ave_AIC1)
+ summary(ave_AIC2)
+ 
 #Check sum of residuals
-sum(abs(ave_AIC1$residuals)) # 9292 w/out max wind; 9099 w/, 8825 w/ veg
-sum(abs(ave_AIC2$residuals)) # 9066 w/out max wind; 8930 w/, 8834 w/ veg
+sum(abs(ave_AIC1$residuals)) # 8825 on 5/2/2020
+sum(abs(ave_AIC2$residuals)) # 8834 on 5/2/2020
 
 ave_df$aic_dbr1 <- predict(ave_AIC1, newdata = ave_df) #predict using pared down model
 ave_df$aic_dbr2 <- predict(ave_AIC2, newdata = ave_df) #predict using pared down model
@@ -400,67 +366,20 @@ ggplot(ave_df) + #doesn't seem to make much difference
   geom_abline(slope = 1) +
   xlim(0,1000) +
   ylim(0,1000) +
-  theme_minimal()
+  theme_minimal() +
+  ggtitle("OLS Stepwise Ave Data (mean biomass)") +
+  xlab("Mean dBR") + 
+  ylab("Predicted mean dBR")
 
 ggplot(ave_df) + #doesn't seem to make much difference
   geom_point(aes(x = dbr_means, y = aic_dbr2), alpha = 0.4) +
   geom_abline(slope = 1) +
   xlim(0,1000) +
   ylim(0,1000) +
-  theme_minimal()
-
-```
-
-## LASSO
-
-```{r LASSO all}
-#trying LASSO, RR, and EN
-#LASSO: alpha = 1, Ridge Regression: alpha = 0, Elastic Net: alpha = 0.5
-#all produced similar results
-
-#started failing, but the fit was bad anyways
-
-#all data points
-all_x <- data.frame(all_ind)
-all_y <- data.frame(all_dbr)
-
-# all_lasso <- cv.glmnet(x = all_x, y = all_y, 
-#                            family = "gaussian", standardize = TRUE, 
-#                            intercept = TRUE, alpha = 1)
-# all_df$lasso_dbr <- predict(all_lasso, newx= all_x) 
-# 
-# ggplot(all_df) + #doesn't seem to make much difference
-#   geom_point(aes(x = dbr, y = lasso_dbr), alpha = 0.4) +
-#   geom_abline(slope = 1) +
-#   xlim(0,1000) +
-#   ylim(0,1000) +
-#   theme_minimal()
-
-#trash
-```
-
-
-```{r LASSO ave}
-#trying LASSO, RR, and EN
-#LASSO: alpha = 1, Ridge Regression: alpha = 0, Elastic Net: alpha = 0.5
-
-#all data points
-ave_x <- as.matrix(ave_ind)
-ave_y <- matrix(ave_dbr)
-
-ave_lasso <- cv.glmnet(x = ave_x, y = ave_y, 
-                           family = "gaussian", standardize = TRUE, 
-                           intercept = TRUE, alpha = 1)
-ave_df$lasso_dbr <- predict(ave_lasso, newx= ave_x) 
-
-ggplot(ave_df) + #doesn't seem to make much difference
-  geom_point(aes(x = dbr_means, y = lasso_dbr), alpha = 0.4) +
-  geom_abline(slope = 1) +
-  xlim(0,1000) +
-  ylim(0,1000) +
-  theme_minimal()
-
-#something about LASSO/RR/EN doesn't work with the averaged values
+  theme_minimal() +
+  ggtitle("OLS Stepwise Ave Data (sum biomass)") +
+  xlab("Mean dBR") + 
+  ylab("Predicted mean dBR")
 
 ```
 
@@ -469,23 +388,25 @@ ggplot(ave_df) + #doesn't seem to make much difference
 ```{r RF all}
 
 #setting up random forest
+set.seed(1) #set seed for reproducability
 
-#which(is.na(all_ind)) #confirm that no NAs still exist
 all_forest = randomForest(x = all_ind, y = all_dbr, ntree = 300, mtry = 5) #documentation recs using 1/3 # of ind variables for mtry
-# all_forest2 = randomForest(formula = dbr~., data = all_df, ntree = 300, mtry = 5) 
-#tried with various ntree and mtry values and got identical results
+#tried with various ntree and mtry values and got nearly identical results
 
-sum(all_forest$mse) #sum of MSE w/out wind: 9616657; ave: 32055
-                    #sum of MSE w/ wind: 9674473; ave: 32248
+import_all <- all_forest$importance #extract importance of each variable to final fit
+#elevation/slope/aspect/living bio most important; precip values were least
 
-all_forest$importance
-#slope/aspect/living bio most important; precip values were least
-
+#Extract predicted values
 all_df$rf_dbr <- all_forest$predicted
 
-png(file = "graphics/rfAll.png")
+#Check MSE and residuals
+sum(all_forest$mse) #sum MSE 9610976 (on 5/2/2020)
+mean(all_forest$mse) #mean MSE 32036
+mean(abs(all_df$dbr-all_df$rf_dbr)) #128 (on 5/2/2020)
 
-ggplot(all_df) + #doesn't seem to make much difference
+# png(file = "graphics/rfAll.png")
+
+ggplot(all_df) + 
   geom_point(aes(x = dbr, y = rf_dbr), alpha = 0.4) +
   geom_abline(slope = 1) +
   xlim(0,1000) +
@@ -495,49 +416,54 @@ ggplot(all_df) + #doesn't seem to make much difference
   xlab("dBR") + 
   ylab("Predicted dBR")
 
-dev.off()
+# dev.off()
 
-#improved over fit for OLS/LASSO for sure
-
+#Best fit model for "all" data set. Re-fit model using test-train split in code chunk below, and model seemed similar
 
 ```
 
 ```{r RF ave}
 #setting up Random Forest
+set.seed(1) #set seed for reproducability 
 
-ave_forest <- randomForest(x = ave_ind, y = ave_dbr, ntree = 300, mtry = 5) #documentation recs using 1/3 # of ind variables for mtry
-#tried with various ntree and mtry values and got identical results
-ave_forest_alt <- randomForest(x = ave_ind_alt, y = ave_dbr, ntree = 300, mtry = 5)
+ave_forest1 <- randomForest(x = ave_ind, y = ave_dbr, ntree = 300, mtry = 8) #documentation recs using 1/3 # of ind variables for mtry; 
+ave_forest2 <- randomForest(x = ave_ind_alt, y = ave_dbr, ntree = 300, mtry = 8)
 
-ave_forest$importance
-ave_forest_alt$importance
-#aspect/dem/fireduration/fire size most important; precip values/wind/dead biomass were least
+#Use "importance" ranking (RF doesn't allow for traditional coefficients)
+import_ave1 <- ave_forest$importance
+import_ave2 <- ave_forest_alt$importance
+#fireduration/elevation/fire size/aspect most important; precip values and non-conifer/shrub/hardwood land cover classes were least [roughly similar for both forests]
 
-ave_df$rf_dbr <- ave_forest$predicted
-ave_df$rf_dbr_alt <- ave_forest_alt$predicted
+#extract predicted values
+ave_df$rf_dbr1 <- ave_forest1$predicted 
+ave_df$rf_dbr2 <- ave_forest2$predicted
 
-ggplot(ave_df) + #doesn't seem to make much difference
-  geom_point(aes(x = dbr_means, y = rf_dbr), alpha = 0.4) +
+#check residuals
+sum(abs(ave_df$rf_dbr1-ave_df$dbr_means)) #9948 on 5/2/2020
+sum(abs(ave_df$rf_dbr2-ave_df$dbr_means)) #10320 on 5/2/2020
+
+#Residuals are higher than ols and model fit appears worse (see plots below)
+
+ggplot(ave_df) + 
+  geom_point(aes(x = dbr_means, y = rf_dbr1), alpha = 0.4) +
   geom_abline(slope = 1) +
   xlim(0,1000) +
   ylim(0,1000) +
-  theme_minimal()
+  theme_minimal() +
+  ggtitle("Random Forest Ave Data (mean biomass)") +
+  xlab("Mean dBR") + 
+  ylab("Predicted mean dBR")
 
-ggplot(ave_df) + #the alt is tighter but still not great
-  geom_point(aes(x = dbr_means, y = rf_dbr_alt), alpha = 0.4) +
+ggplot(ave_df) +
+  geom_point(aes(x = dbr_means, y = rf_dbr2), alpha = 0.4) +
   geom_abline(slope = 1) +
   xlim(0,1000) +
   ylim(0,1000) +
-  theme_minimal()
+  theme_minimal() +
+  ggtitle("Random Forest Ave Data (sum biomass)") +
+  xlab("Mean dBR") + 
+  ylab("Predicted mean dBR")
 
-#seems to be a slightly worse fit compared to OLS (see below)
-
-ggplot(ave_df) + #OLS chart
-  geom_point(aes(x = dbr_means, y = pred_dbr2), alpha = 0.4) +
-  geom_abline(slope = 1) +
-  xlim(0,1000) +
-  ylim(0,1000) +
-  theme_minimal()
 
 ```
 
@@ -548,60 +474,73 @@ ggplot(ave_df) + #OLS chart
 
 all_svm <- train(all_ind, all_dbr, method = "svmLinear2", trControl = control) #using same cv settings as before w/ stepwise
 
+#Predict values
 all_df$svm_dbr <- predict(all_svm, newx = all_df)
 
+#Inspect fit
 ggplot(all_df) + 
   geom_point(aes(x = dbr, y = svm_dbr), alpha = 0.4) +
   geom_abline(slope = 1) +
   xlim(0,1000) +
   ylim(0,1000) +
-  theme_minimal()
+  theme_minimal() +
+  ggtitle("SVM All Data") +
+  xlab("dBR") + 
+  ylab("Predicted dBR")
 
-#slightly better than ols but still off, RF is better (see plot below)
-
-# ggplot(all_df) + #RF plot
-#   geom_point(aes(x = dbr, y = rf_dbr), alpha = 0.4) +
-#   geom_abline(slope = 1) +
-#   xlim(0,1000) +
-#   ylim(0,1000) +
-#   theme_minimal()
+#Not close; RF selected as best model for all values data set
 
 ```
 
 ```{r SVM ave}
-#Set up Support Vector Machine in 3 methods w/ 3 different results
-#broadly best fit but I'm worried about how overfit the models are
+#Set up Support Vector Machines
+set.seed(1) #set seed for reproducibility 
 
-ave_svm <- train(ave_ind, ave_dbr, method = "svmLinear2", trControl = control) #using same cv settings as before w/ stepwise
-ave_svm_alt <- train(ave_ind_alt, ave_dbr, method = "svmLinear2", trControl = control) 
+## Method 1 - caret packaged
+ave_svm1 <- train(ave_ind, ave_dbr, method = "svmLinear", trControl = control) #using same cv settings as before w/ stepwise
+ave_svm2 <- train(ave_ind_alt, ave_dbr, method = "svmLinear2", trControl = control) 
 
-ave_df$svm_dbr <- predict(ave_svm, newx = ave_df)
-ave_df$svm_dbr_alt <- predict(ave_svm_alt, newx = ave_df)
+#predict new data
+ave_df$svm_dbr1 <- predict(ave_svm1, newx = ave_df)
+ave_df$svm_dbr2 <- predict(ave_svm2, newx = ave_df)
 
 #check residuals
-sum(abs(ave_df$svm_dbr-ave_df$dbr_means)) #8492 w/ wind max, 8038 w/ veg
-sum(abs(ave_df$svm_dbr_alt-ave_df$dbr_means)) #8469 w/ wind max, 8350 w/ veg
+sum(abs(ave_df$svm_dbr1-ave_df$dbr_means)) #8038 (5/2/2020) mean - 78, median - 38
+sum(abs(ave_df$svm_dbr2-ave_df$dbr_means)) #8350 (5/2/2020)
+#Improvement over OLS/Stepwise OLS/RF
 
-#Testing a different SVM method
+#Check importance of variables
+importance_SVM1 <- varImp(ave_svm1, data=ave_ind)
+importance_SVM1 <- importance_SVM1$importance
+
+importance_SVM2 <- varImp(ave_svm2, data=ave_ind)
+importance_SVM2 <- importance_SVM2$importance
+
+## Method 2: e1071 package
 
 ave_svm_1 <- svm(x = ave_ind, y = ave_dbr)
-ave_svm_alt_1 <- svm(x = ave_ind_alt, y = ave_dbr)
+ave_svm_2 <- svm(x = ave_ind_alt, y = ave_dbr)
 
-ave_df$svm_dbr1 <- predict(ave_svm_1, newx = ave_df)
-ave_df$svm_dbr1_alt <- predict(ave_svm_alt_1, newx = ave_df)
+#predict values on alternate SVM
+ave_df$svm_dbr_1 <- predict(ave_svm_1, newx = ave_df)
+ave_df$svm_dbr_2 <- predict(ave_svm_2, newx = ave_df)
 
-sum(abs(ave_svm_1$residuals)) #Check residuals; best for all models so far 6188 w/out wind; 5998 w/ wind, 6175 w/ veg
-sum(abs(ave_svm_alt_1$residuals)) #Check residuals; best for all models so far, 5888 w/ wind, 6302 w/ veg
+#Check residuals for alternate SVM
+sum(abs(ave_svm_1$residuals)) #6175 on 5/2/2020
+sum(abs(ave_svm_alt_1$residuals)) #6302 on 5/2/2020
 
-#Trying one more way to try to extract importance
+#residuals improved but model seems overfit
+#checking with a test-train split in code chunk below confirmed this
+
+## Method 3: rminer package
+
 M <- fit(ave_dbr~., data=ave_ind, model="svm", kpar=list(sigma=0.10), C=2)
-svm.imp <- Importance(M, data=ave_ind)
-#svm.imp$imp
+#svm.imp <- Importance(M, data=ave_ind)
 
 M_alt <- fit(ave_dbr~., data=ave_ind_alt, model="svm", kpar=list(sigma=0.10), C=2)
-svm_imp_alt <- Importance(M_alt, data=ave_ind_alt)
-#svm_imp_alt$imp
+#svm_imp_alt <- Importance(M_alt, data=ave_ind_alt)
 
+#predict new values
 ave_df$svm_m_dbr <- predict(M, newdata = ave_ind)
 ave_df$svm_m_dbr_alt <- predict(M_alt, newdata = ave_ind_alt)
 
@@ -609,54 +548,152 @@ ave_df$svm_m_dbr_alt <- predict(M_alt, newdata = ave_ind_alt)
 sum(abs(ave_df$svm_m_dbr-ave_df$dbr_means)) #3308 w/ wind max, 2814 w/ veg
 sum(abs(ave_df$svm_m_dbr_alt-ave_df$dbr_means)) #3284 w/ wind max, 3001 w/ veg
 
-#best residuals and fit, but model seems severly overfit; will test with T/T split to confirm
+#best residuals and fit, but model seems severly overfit (confirmed with test-train split below)
 
-#plots w/ OLS comparison
+## Selected Method 1 as our best fit average value model
 
-ggplot(ave_df) +  
-  geom_point(aes(x = dbr_means, y = svm_dbr), alpha = 0.4) +
-  geom_abline(slope = 1) +
-  xlim(0,1000) +
-  ylim(0,1000) +
-  theme_minimal()
-
-png(file = "graphics/SVMAve1.png")
+#png(file = "graphics/SVMAveFinal.png")
 
 ggplot(ave_df) + 
-  geom_point(aes(x = dbr_means, y = svm_dbr1_alt), alpha = 0.4) +
+  geom_point(aes(x = dbr_means, y = svm_dbr1), alpha = 0.5, size = 3) +
+  geom_abline(slope = 1) +
+  xlim(0,750) +
+  ylim(0,750) +
+  theme_minimal() +
+  ggtitle("SVM Average Data (mean Biomass)") +
+  xlab("Mean dBR") + 
+  ylab("Predicted Mean dBR")
+
+# dev.off()
+
+
+```
+## Check model fit on test/train split
+
+```{r test-train split all}
+
+#setting up random forest
+set.seed(1) #set seed for reproducability
+
+#New forest with training data
+test_forest = randomForest(x = train_ind, y = train_dbr, ntree = 300, mtry = 5) #documentation recs using 1/3 # of ind variables for mtry
+#tried with various ntree and mtry values and got nearly identical results
+
+#predict new values on test set
+test_forest_pred <- predict(test_forest, newdata = test_ind)
+
+check_all <- cbind(data.frame(test_dbr), data.frame(test_forest_pred))
+
+#check residuals
+sum(abs(check_all$test_dbr-check_all$test_forest_pred)) #298269 (5/2/2020)
+mean(abs(check_all$test_dbr-check_all$test_forest_pred)) #128
+
+import_test <- test_forest$importance #extract importance of each variable to final fit
+#generally same importance ranking as full model
+
+#Inspect the plot of test fit
+
+ggplot(check_all) + 
+  geom_point(aes(x = test_dbr, y = test_forest_pred), alpha = 0.4) +
   geom_abline(slope = 1) +
   xlim(0,1000) +
   ylim(0,1000) +
   theme_minimal() +
-  ggtitle("SVM Average Data (Biomass_Sum)") +
-  xlab("Mean dBR") + 
-  ylab("Predicted Mean dBR")
+  ggtitle("Random Forest - All Sample Points") +
+  xlab("dBR") + 
+  ylab("Predicted dBR")
 
-dev.off()
-
-#better than stepwise or ols,  see plot below
-
-png(file = "graphics/StepAve.png")
-
-ggplot(ave_df) + #stepwise OLS plot
-  geom_point(aes(x = dbr_means, y = aic_dbr1), alpha = 0.4) +
-  geom_abline(slope = 1) +
-  xlim(0,1000) +
-  ylim(0,1000) +
-  theme_minimal() +
-  ggtitle("Stepwise OLS (Biomass_Mean)") +
-  xlab("Mean dBR") + 
-  ylab("Predicted Mean dBR")
-
-dev.off()
-
-ggplot(ave_df) + #stepwise OLS plot
-  geom_point(aes(x = dbr_means, y = pred_dbr2), alpha = 0.4) +
-  geom_abline(slope = 1) +
-  xlim(0,1000) +
-  ylim(0,1000) +
-  theme_minimal()
+# Looks about the same as the fit of full-data frame model
 
 ```
 
+```{r test-train split ave}
+# Check svm models using t-t split data from before
+set.seed(123) #set seed for reproducibility 
 
+#Test the different methods from before 
+ave_svm_tt1 <- train(ave_tr_ind, ave_tr_dbr, method = "svmLinear2", trControl = control) 
+ave_svm_tt2 <- svm(x = ave_tr_ind, y = ave_tr_dbr) 
+ave_svm_tt3 <- fit(ave_tr_dbr~., data=ave_tr_ind, model="svm", kpar=list(sigma=0.10), C=2)
+
+#predict new data
+test_pred1 <- predict(ave_svm_tt1, newdata = ave_te_ind)
+test_pred2 <- predict(ave_svm_tt2, newdata = ave_te_ind)
+test_pred3 <- predict(ave_svm_tt3, newdata = ave_te_ind)
+
+check_ave_1 <- cbind(data.frame(ave_te_dbr), data.frame(test_pred1))
+check_ave_2 <- cbind(data.frame(ave_te_dbr), data.frame(test_pred2))
+check_ave_3 <- cbind(data.frame(ave_te_dbr), data.frame(test_pred3))
+
+#check residuals
+sum(abs(check_ave_1$ave_te_dbr-check_ave_1$test_pred1)) #2317 (5/2/2020)  mean- 89, median - 62
+sum(abs(check_ave_2$ave_te_dbr-check_ave_2$test_pred2)) #2244 (5/2/2020)
+sum(abs(check_ave_2$ave_te_dbr-check_ave_3$test_pred3)) #2165 (5/2/2020)
+#residuals are fairly close
+
+#Look at plots of test data fits
+
+ggplot(check_ave_1) +  
+  geom_point(aes(x = ave_te_dbr, y = test_pred1), alpha = 0.5, size = 3) +
+  geom_abline(slope = 1) +
+  xlim(0,750) +
+  ylim(0,750) +
+  theme_minimal() +
+  ggtitle("SVM Test Split") +
+  xlab("Mean dBR") + 
+  ylab("Predicted Mean dBR")
+
+ggplot(check_ave_2) +  
+  geom_point(aes(x = ave_te_dbr, y = test_pred2), alpha = 0.5, size = 3) +
+  geom_abline(slope = 1) +
+  xlim(0,750) +
+  ylim(0,750) +
+  theme_minimal() +
+  ggtitle("SVM Test Split") +
+  xlab("Mean dBR") + 
+  ylab("Predicted Mean dBR")
+
+ggplot(check_ave_3) +  
+  geom_point(aes(x = ave_te_dbr, y = test_pred3), alpha = 0.5, size = 3) +
+  geom_abline(slope = 1) +
+  xlim(0,750) +
+  ylim(0,750) +
+  theme_minimal() +
+  ggtitle("SVM Test Split") +
+  xlab("Mean dBR") + 
+  ylab("Predicted Mean dBR")
+
+#Fit for the second & third method is way off; we chose to use the first method in our report and shiny app
+
+```
+
+```{r compare to ols}
+
+#compare results of svm in test-train split to ols using same data
+
+test_ols1 <- lm(ave_tr_dbr ~ slope_MEAN + aspect_MEAN + DEM_MEAN + LiveBio_MEAN + DeadBio_MEAN + TreeDens + fireduration + GIS_ACRES + 
+          month_temp + week_temp + month_precip + week_precip + wind_speed + wind_max + month_humid + week_humid +
+          conifer + shrub + herbaceous + barren_other + urban + hardwood + water + agricultural, 
+          data = ave_tr_ind) #This uses mean biomass
+
+#Predict in test set 
+te_dbr_ols1 <- predict(test_ols1, newdata = ave_te_ind) #mean biomass
+
+check_ols_1 <- cbind(data.frame(ave_te_dbr), data.frame(te_dbr_ols1))
+
+#Check fit
+sum(abs(check_ols_1$ave_te_dbr-check_ols_1$te_dbr_ols1)) #2848 (5/2/2020)  mean- 109, median - 71
+
+ggplot(check_ols_1) +  
+  geom_point(aes(x = ave_te_dbr, y = te_dbr_ols1), alpha = 0.5, size = 3) +
+  geom_abline(slope = 1) +
+  xlim(0,750) +
+  ylim(0,750) +
+  theme_minimal() +
+  ggtitle("OLS Test Split") +
+  xlab("Mean dBR") + 
+  ylab("Predicted Mean dBR")
+
+#similar, but SVM seems to perform slightly better based on residuals and visual inspection of fit
+
+```
