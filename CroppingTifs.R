@@ -3,6 +3,8 @@
 library(raster)
 library(sf)
 library(ggplot2)
+library(dplyr)
+library(readr)
 
 # ---------------------------------------------
 # download dead biomass tif file
@@ -20,9 +22,20 @@ veg_type <- raster("data/VegType110.tif") # you have to download this file onto 
 # read 110 fire shapefile
 fire_polygons <- st_read('data/fire_data/110fires_sample.shp') # fire polygons
 
+# ---------------------------------------------
 # store fire polygon geometry separately
 fire_polygons_geom <- st_geometry(fire_polygons)
 names(fire_polygons_geom) <- fire_polygons$OBJECTID
+
+# get centroid of fires
+fires <- fire_polygons %>%
+  mutate(centroids = st_centroid(geometry))
+fires_points <- fires$centroids
+fires_points <- st_transform(fires_points, 4326)
+fires_points <- as.data.frame(st_coordinates(fires_points))
+fires_points <- fires_points %>% mutate(OBJECTID = as.character(fires$OBJECTID))
+
+#write_csv(fires_points,  "./data/fires_points.csv")
 
 # ---------------------------------------------
 # Dead Biomass
@@ -36,11 +49,13 @@ dead_biomassList <- list() # initialize empty list
 for (i in 1:length(fires_projected)) {
   extent <- as_Spatial(fires_projected[i])
   dead_biomassList[[i]] <- crop(x = dead_biomass, y = extent)
+  writeRaster(dead_biomassList[[i]], 
+              filename = paste0("data/DeadBiomassTifs/", fire_polygons$OBJECTID[[i]], ".tif"),
+              overwrite = TRUE)
 }
 
-# name the dead_biomass list by Object IDs
-names(dead_biomassList) <- fire_polygons$OBJECTID
 
+            
 # ---------------------------------------------
 # Live Biomass
 # Need to crop LIVE biomass file by each fire polygon
@@ -57,6 +72,9 @@ live_biomassList <- list() # initialize empty list
 for (i in 1:length(fires_projected)) {
   extent <- as_Spatial(fires_projected[i])
   live_biomassList[[i]] <- crop(x = live_biomass, y = extent)
+  writeRaster(live_biomassList[[i]], 
+              filename = paste0("data/LivingBiomassTifs/", fire_polygons$OBJECTID[[i]], ".tif"),
+              overwrite = TRUE)
 }
 
 # name the live_biomass list by Object IDs
@@ -78,6 +96,9 @@ tree_densityList <- list() # initialize empty list
 for (i in 1:length(fires_projected)) {
   extent <- as_Spatial(fires_projected[i])
   tree_densityList[[i]] <- crop(x = tree_density, y = extent)
+  writeRaster(tree_densityList[[i]], 
+              filename = paste0("data/TreeDensTifs/", fire_polygons$OBJECTID[[i]], ".tif"),
+              overwrite = TRUE)
 }
 
 # name the live_biomass list by Object IDs
@@ -99,6 +120,9 @@ veg_typeList <- list() # initialize empty list
 for (i in 1:length(fires_projected)) {
   extent <- as_Spatial(fires_projected[i])
   veg_typeList[[i]] <- crop(x = veg_type, y = extent)
+  writeRaster(veg_typeList[[i]], 
+              filename = paste0("data/VegTypeTifs/", fire_polygons$OBJECTID[[i]], ".tif"),
+              overwrite = TRUE)
 }
 
 # name the live_biomass list by Object IDs
