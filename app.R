@@ -138,14 +138,25 @@ ui <- fluidPage (
   tabPanel("About",
            fluidRow(column(12, img(src = "WildFireImage.png", height = 500, width = 900))),
            fluidRow(column(12, h1("Exploring the relationship between environmental variables and burn intensity in California wildfires"))),
-           fluidRow(column(12, p("There has been an increase in wildfires in California in the last decade.  This increase coincided with the death of 129 million trees due to drought and bark beetles. The factors that influence burn severity in wildfires are complex. The goal of this project is to further explore the drivers of burn severity in California wildfires, including presence of dead biomass. We sampled 102 wildfires that occurred in California in 2017."))),
+           fluidRow(column(12, p("There has been an increase in wildfires in California over the past decade, coinciding with the death of 129 million trees due to drought and bark beetles. Wildfires cause varying degrees of damage to ecosystems, but the factors that influence burn severity in wildfires are complex."))),
            fluidRow(column(12, 
-                           p("Our team worked with CalFire’s Fire Research and Assessment Program to review our methodology and identify data sources for environmental variables. For more information about land-owner assistance programs, visit:"))),
+                           p("The goal of this project is to further explore the drivers of burn severity in California wildfires, including presence of dead biomass due to tree death. This study is based on a sample of 102 wildfires (>300 acres) that occurred in California in 2017. Our team worked with CalFire’s Fire Research and Assessment Program to review our methodology and identify data sources for environmental variables."))),
+           fluidRow(column(12, 
+                           p("For more information about land-owner assistance programs, visit:"))),
            fluidRow(column(12,
                            a("Cal Fire Land Owner Assistance Program", href = "https://www.fire.ca.gov/programs/resource-management/resource-protection-improvement/landowner-assistance"))),
            fluidRow(column(12,
                            a("USDA Disaster Recovery Assistance Program", href = "https://www.nrcs.usda.gov/wps/portal/nrcs/detail/national/programs/?cid=NRCSEPRD1361073"))),
-  #    fluidRow(column(4, h4("Summary of Fires"), p("We sampled 102 wildfires that occurred in California in 2017. Here is the average distribution of average burn severities of the fires we selected."), plotOutput('piechart')))
+  
+           fluidRow(column(12, 
+                           p(" "))),
+           fluidRow(column(12, 
+                           p("This project was produced as part of the Data Science for the 21st Century program at UC Berkeley. Questions can be directed to Sam Stein at samstein (@) berkeley (.) edu. Our team consisted of Sam Hing, Sam Stein, Yiyi He, and Arfa Aijazi. Our team would like to thank Mark Rosenberg from CalFire for his invaluable assistance with this project."))),
+           fluidRow(column(12,
+                           a("Repository with reproducible code", href = "https://github.com/samsteingeog/burn_mortality"))), 
+           fluidRow(column(12,
+                           a("Downloads for tiff files", href = "https://datadryad.org/stash/dataset/doi:10.6078/D16988"))), 
+           #    fluidRow(column(4, h4("Summary of Fires"), p("We sampled 102 wildfires that occurred in California in 2017. Here is the average distribution of average burn severities of the fires we selected."), plotOutput('piechart')))
   ),
   
   tabPanel("Fire Data",
@@ -381,28 +392,28 @@ server <- function(input, output, session) {
     # Model plots
     output$modelplot <- renderPlot({
       if (input$models == 'Random Forest') {
-      ggplot(all_df) + #doesn't seem to make much difference
-        geom_point(aes(x = dbr, y = rf_dbr), alpha = 0.4) +
-        geom_abline(slope = 1) +
-        xlim(0,1000) +
-        ylim(0,1000) +
-        theme_minimal() +
-        ggtitle("Random Forest - All Sample Points") +
-        xlab("dBR") + 
-        ylab("Predicted dBR")
+        ggplot(all_df) + 
+          geom_point(aes(x = dbr, y = rf_dbr), alpha = 0.4) +
+          geom_abline(slope = 1) +
+          xlim(0,1000) +
+          ylim(0,1000) +
+          theme_minimal() +
+          ggtitle("Random Forest - All Sample Points") +
+          xlab("dBR") + 
+          ylab("Predicted dBR")
       }
       
       #(input$models == 'Support Vector Machine')
       else  {
-      ggplot(ave_df) +
-        geom_point(aes(x = dbr_means, y = svm_dbr1_alt), alpha = 0.4) +
-        geom_abline(slope = 1) +
-        xlim(0,1000) +
-        ylim(0,1000) +
-        theme_minimal() +
-        ggtitle("SVM Average Data (Biomass_Sum)") +
-        xlab("Mean dBR") +
-        ylab("Predicted Mean dBR")
+        ggplot(ave_df) + 
+          geom_point(aes(x = dbr_means, y = svm_dbr1), alpha = 0.5, size = 3) +
+          geom_abline(slope = 1) +
+          xlim(0,750) +
+          ylim(0,750) +
+          theme_minimal() +
+          ggtitle("SVM Average Data (mean Biomass)") +
+          xlab("Mean dBR") + 
+          ylab("Predicted Mean dBR")
       }
     })
     
@@ -420,37 +431,33 @@ server <- function(input, output, session) {
 9. Humidity (week prior) 
 10. Wind speed (average) 
 11. Dead biomass 
-12. Temp (week prior) 
-13. Wind speed (max) 
+12. Wind speed (max) 
+13. Temp (week prior) 
 14. Precip (month prior) 
 15. Precip (week prior)"
       }
       else { 
          
-"1. Temp (month prior) 
-2. Humidity (week prior)
-3. Wind speed (average)
+"1. Elevation 
+2. Fire duration
+3. Conifer Land Cover
 4. Aspect
-5. Slope
-6. Conifer LC 
-7. Humidity (month prior)
-8. Living biomass
-9. Fire duration
-10. Dead biomass 
-11. Precip (month prior) 
-12. Wind speed (max) 
-13. Elevation 
-14. Urban LC 
-15. Herbaceous LC 
-16. Precip (week prior) 
-17. Temp (week prior) 
-18. Water LC 
-19. Barren LC 
-20. Tree Density 
-21. Shrub LC 
-22. Hardwood LC 
-23. Agricultural LC 
-24. Fire Size"
+5. Temp (week prior)
+6. Living Biomass
+7. Temp (month prior)
+8. Tree Density
+9. Humidity (month prior)
+10. Wind speed (average)
+11. Herbaceous Land Cover 
+12. Fire size
+13. Dead Biomass 
+14. Humidity (week prior)
+15. Barren Land Cover
+16. Wind Speed (max) 
+17. Precip (month prior) 
+18. Slope
+19. Shrub Land Cover
+20. Precip (month prior)"
       }
         
       

@@ -6,16 +6,16 @@ library(ggplot2)
 
 # ---------------------------------------------
 # download dead biomass tif file
-dead_biomass <- raster("data/DeadBiomass110.tif") # you have to download this file onto your personal computer (not on git)
+dead_biomass <- raster("data/DeadBiomassSmall3.tif") # you have to download this file onto your personal computer (not on git)
 
 # download live biomass tif file
-live_biomass <- raster("data/LivingBiomass110.tif") # you have to download this file onto your personal computer (not on git)
+live_biomass <- raster("data/LivingBiomassSmall3.tif") # you have to download this file onto your personal computer (not on git)
 
 # download tree density tif file
-tree_density <- raster("data/TreeDens110.tif") # you have to download this file onto your personal computer (not on git)
+tree_density <- raster("data/TreeDensSmall3.tif") # you have to download this file onto your personal computer (not on git)
 
 # download veg type tif file
-veg_type <- raster("data/VegType110.tif") # you have to download this file onto your personal computer (not on git)
+veg_type <- raster("data/VegTypeResamp.tif") # you have to download this file onto your personal computer (not on git)
 
 # read 110 fire shapefile
 fire_polygons <- st_read('data/fire_data/110fires_sample.shp') # fire polygons
