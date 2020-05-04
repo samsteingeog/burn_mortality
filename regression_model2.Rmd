@@ -17,6 +17,7 @@ library(glmnet)
 library(randomForest)
 library(e1071)
 library(rminer)
+library(Metrics)
 
 ```
 
@@ -312,6 +313,8 @@ ggplot(ave_df) +
 sum(abs(ave_ols1$residuals)) #8546 on 5/2/2020
 sum(abs(ave_ols2$residuals)) #8750 on 5/2/2020
 
+RMSEols <- rmse(ave_df$pred_dbr1, ave_df$dbr_means)
+
 ```
 
 ### Use stepwise approach to OLS
@@ -390,7 +393,7 @@ ggplot(ave_df) + #doesn't seem to make much difference
 #setting up random forest
 set.seed(1) #set seed for reproducability
 
-all_forest = randomForest(x = all_ind, y = all_dbr, ntree = 300, mtry = 5, importance=T) #documentation recs using 1/3 # of ind variables for mtry
+all_forest = randomForest(x = all_ind, y = all_dbr, ntree = 500, mtry = 5, importance=T) #documentation recs using 1/3 # of ind variables for mtry
 #tried with various ntree and mtry values and got nearly identical results
 
 #import_all2 <- importance(all_forest, data = all_df, type = 1)
@@ -508,7 +511,7 @@ ave_df$svm_dbr1 <- predict(ave_svm1, newx = ave_df)
 ave_df$svm_dbr2 <- predict(ave_svm2, newx = ave_df)
 
 #check residuals
-sum(abs(ave_df$svm_dbr1-ave_df$dbr_means)) #8038 (5/2/2020) mean - 78, median - 38
+sum(abs(ave_df$svm_dbr1-ave_df$dbr_means)) #8041 (5/2/2020) mean - 78, median - 38
 sum(abs(ave_df$svm_dbr2-ave_df$dbr_means)) #8350 (5/2/2020)
 #Improvement over OLS/Stepwise OLS/RF
 
@@ -569,7 +572,7 @@ ggplot(ave_df) +
 
 # dev.off()
 
-
+RMSEsvm <- rmse(ave_df$svm_dbr1, ave_df$dbr_means)
 ```
 ## Check model fit on test/train split
 
