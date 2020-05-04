@@ -390,10 +390,13 @@ ggplot(ave_df) + #doesn't seem to make much difference
 #setting up random forest
 set.seed(1) #set seed for reproducability
 
-all_forest = randomForest(x = all_ind, y = all_dbr, ntree = 300, mtry = 5) #documentation recs using 1/3 # of ind variables for mtry
+all_forest = randomForest(x = all_ind, y = all_dbr, ntree = 300, mtry = 5, importance=T) #documentation recs using 1/3 # of ind variables for mtry
 #tried with various ntree and mtry values and got nearly identical results
 
-import_all <- all_forest$importance #extract importance of each variable to final fit
+#import_all2 <- importance(all_forest, data = all_df, type = 1)
+
+import_all <- data.frame(all_forest$importance) #extract importance of each variable to final fit
+import_all$standard <- (import_all$IncNodePurity/	64557521) * 100
 #elevation/slope/aspect/living bio most important; precip values were least
 
 #Extract predicted values
